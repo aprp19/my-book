@@ -16,7 +16,8 @@ import {
   recentChaptersQueryOptions,
   recentViewsQueryOptions,
 } from "@/lib/queries/options";
-import { formatDistanceToNow } from "@/lib/utils/date";
+import { formatChapterReleaseDate, formatDistanceToNow } from "@/lib/utils/date";
+import type { MangaProviderType } from "@/types";
 
 interface LibrarySectionsProps {
   userId: string | null;
@@ -140,9 +141,11 @@ export function LibrarySections({ userId }: LibrarySectionsProps) {
           variant="carousel"
           items={favorites.map((row) => ({
             id: row.external_manga_id,
-            provider: row.provider,
+            provider: row.provider as MangaProviderType,
             title: row.title,
             coverUrl: row.cover_url,
+            subtitle:
+              formatChapterReleaseDate(row.lastChapterUpdatedAt) ?? undefined,
           }))}
           emptyMessage="No favorites yet — heart a series on its detail page."
         />

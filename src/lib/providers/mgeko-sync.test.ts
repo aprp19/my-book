@@ -4,6 +4,35 @@ import {
   parseMgekoReadChapters,
 } from "./mgeko-sync";
 import { MgekoAuthError } from "./mgeko-auth-fetch";
+import { chapterNumberFromSlug, resolveMgekoChapterId } from "./mgeko-utils";
+
+describe("resolveMgekoChapterId", () => {
+  it("expands short chapter slugs from all-chapters page", () => {
+    expect(
+      resolveMgekoChapterId(
+        "the-regressed-mercenarys-machinations",
+        "102-eng-li",
+      ),
+    ).toBe("the-regressed-mercenarys-machinations-chapter-102-eng-li");
+    expect(
+      resolveMgekoChapterId(
+        "the-regressed-mercenarys-machinations",
+        "90-5-eng-li",
+      ),
+    ).toBe("the-regressed-mercenarys-machinations-chapter-90-5-eng-li");
+  });
+});
+
+describe("chapterNumberFromSlug", () => {
+  it("parses short and full slugs", () => {
+    expect(chapterNumberFromSlug("102-eng-li")).toBe("102");
+    expect(
+      chapterNumberFromSlug(
+        "the-regressed-mercenarys-machinations-chapter-90-5-eng-li",
+      ),
+    ).toBe("90.5");
+  });
+});
 
 describe("parseMgekoBookmarks", () => {
   it("parses bookmark articles into unique slugs", () => {
@@ -45,7 +74,41 @@ describe("parseMgekoBookmarks", () => {
 });
 
 describe("parseMgekoReadChapters", () => {
-  it("parses read chapter slugs from visited list items", () => {
+  const mangaId = "the-regressed-mercenarys-machinations";
+
+  it("parses read chapters from fa-eye-slash markers on all-chapters page", () => {
+    const html = `
+      <ul class="chapter-list">
+        <li>
+          <a href="/reader/en/the-regressed-mercenarys-machinations-chapter-102-eng-li/">
+            <strong class="chapter-title">102-eng-li</strong>
+          </a>
+          <i class="fas fa-eye-slash" onclick="changeViewStatus(event, '102-eng-li')"></i>
+        </li>
+        <li>
+          <a href="/reader/en/the-regressed-mercenarys-machinations-chapter-101-eng-li/">
+            <strong class="chapter-title">101-eng-li</strong>
+          </a>
+          <i class="fas fa-eye" onclick="changeViewStatus(event, '101-eng-li')"></i>
+        </li>
+        <li>
+          <a href="/reader/en/the-regressed-mercenarys-machinations-chapter-100-eng-li/">
+            <strong class="chapter-title">100-eng-li</strong>
+          </a>
+          <i class="fas fa-eye-slash" onclick="changeViewStatus(event, '100-eng-li')"></i>
+        </li>
+      </ul>
+    `;
+
+    const read = parseMgekoReadChapters(html, mangaId);
+    expect(read.map((c) => c.chapterId)).toEqual([
+      "the-regressed-mercenarys-machinations-chapter-102-eng-li",
+      "the-regressed-mercenarys-machinations-chapter-100-eng-li",
+    ]);
+    expect(read[0].chapterNumber).toBe("102");
+  });
+
+  it("still supports visited list item class markers", () => {
     const html = `
       <ul class="chapter-list">
         <li class="visited">
@@ -54,17 +117,24 @@ describe("parseMgekoReadChapters", () => {
         <li>
           <a href="/reader/en/foo-chapter-9-eng-li/">Ch. 9</a>
         </li>
-        <li class="read">
-          <a href="/reader/en/foo-chapter-8-eng-li/">Ch. 8</a>
+      </ul>
+    `;
+
+    const read = parseMgekoReadChapters(html, "foo");
+    expect(read.map((c) => c.chapterId)).toEqual(["foo-chapter-10-eng-li"]);
+  });
+
+  it("returns empty when logged out (no read markers)", () => {
+    const html = `
+      <ul class="chapter-list">
+        <li>
+          <a href="/reader/en/the-regressed-mercenarys-machinations-chapter-102-eng-li/">
+            <strong class="chapter-title">102-eng-li</strong>
+          </a>
         </li>
       </ul>
     `;
 
-    const read = parseMgekoReadChapters(html);
-    expect(read.map((c) => c.chapterId)).toEqual([
-      "foo-chapter-10-eng-li",
-      "foo-chapter-8-eng-li",
-    ]);
-    expect(read[0].chapterNumber).toBe("10");
+    expect(parseMgekoReadChapters(html, mangaId)).toEqual([]);
   });
 });

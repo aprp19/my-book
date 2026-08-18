@@ -10,9 +10,24 @@ export function resolveCoverUrl(raw: string | undefined): string | null {
 }
 
 export function chapterNumberFromSlug(slug: string): string | null {
-  const match = slug.match(/chapter-([\d]+(?:[-.]\d+)?)-eng-li\/?$/i);
-  if (!match) return null;
-  return match[1].replace("-", ".");
+  const fullMatch = slug.match(/chapter-([\d]+(?:[-.]\d+)?)-eng-li\/?$/i);
+  if (fullMatch) return fullMatch[1].replace("-", ".");
+
+  const shortMatch = slug.match(/^([\d]+(?:-\d+)?)-eng-li\/?$/i);
+  if (shortMatch) return shortMatch[1].replace("-", ".");
+
+  return null;
+}
+
+/** Normalize short mgeko chapter ids from all-chapters page to reader slugs. */
+export function resolveMgekoChapterId(mangaId: string, rawId: string): string {
+  const trimmed = rawId.trim().replace(/\/$/, "");
+  if (!trimmed) return trimmed;
+  if (trimmed.includes("-chapter-")) return trimmed;
+  if (/^[\d]+(?:-\d+)?-eng-li$/i.test(trimmed)) {
+    return `${mangaId}-chapter-${trimmed}`;
+  }
+  return trimmed;
 }
 
 export function decodeHtmlEntities(text: string): string {

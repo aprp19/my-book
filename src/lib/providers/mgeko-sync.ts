@@ -4,6 +4,7 @@ import {
   chapterNumberFromSlug,
   decodeHtmlEntities,
   resolveCoverUrl,
+  resolveMgekoChapterId,
 } from "./mgeko-utils";
 
 export interface MgekoBookmark {
@@ -110,7 +111,48 @@ export function parseMgekoBookmarks(html: string): MgekoBookmark[] {
   return [...bySlug.values()];
 }
 
+function extractChapterIdFromLi(
+  $: cheerio.CheerioAPI,
+  $el: cheerio.Cheerio<any>,
+  mangaId: string,
+): string | null {
+  const href = $el.find("a[href*='/reader/en/']").first().attr("href") ?? "";
+  const hrefMatch = href.match(/\/reader\/en\/([^/]+)\/?/);
+  if (hrefMatch) return hrefMatch[1];
+
+  const onclick =
+    $el.find("[onclick*='changeViewStatus']").attr("onclick") ??
+    $el.attr("onclick") ??
+    "";
+  const onclickMatch = onclick.match(
+    /changeViewStatus\s*\(\s*event\s*,\s*['"]([^'"]+)['"]/i,
+  );
+  if (onclickMatch) {
+    return resolveMgekoChapterId(mangaId, onclickMatch[1]);
+  }
+
+  const titleText =
+    $el.find("strong.chapter-title").first().text().trim() ||
+    $el.find("a strong").first().text().trim();
+  if (titleText) {
+    return resolveMgekoChapterId(mangaId, titleText);
+  }
+
+  return null;
+}
+
 function isReadChapterLi($el: cheerio.Cheerio<any>): boolean {
+  // mgeko marks viewed chapters with fa-eye-slash (see changeViewStatus in new_app.js)
+  if ($el.find(".fa-eye-slash").length > 0) return true;
+
+  // When the view toggle is present, fa-eye explicitly means unread.
+  if (
+    $el.find(".fa-eye").length > 0 &&
+    $el.find("[onclick*='changeViewStatus']").length > 0
+  ) {
+    return false;
+  }
+
   const cls = ($el.attr("class") ?? "").toLowerCase();
   if (/\b(visited|read|viewed|chapter-read|read-chapter|is-read)\b/.test(cls)) {
     return true;
@@ -143,7 +185,10 @@ function isReadChapterLi($el: cheerio.Cheerio<any>): boolean {
   return false;
 }
 
-export function parseMgekoReadChapters(html: string): MgekoReadChapter[] {
+export function parseMgekoReadChapters(
+  html: string,
+  mangaId: string,
+): MgekoReadChapter[] {
   const $ = cheerio.load(html);
   const read: MgekoReadChapter[] = [];
   const seen = new Set<string>();
@@ -152,12 +197,8 @@ export function parseMgekoReadChapters(html: string): MgekoReadChapter[] {
     const $el = $(el);
     if (!isReadChapterLi($el)) return;
 
-    const href = $el.find("a").first().attr("href") ?? "";
-    const chapterMatch = href.match(/\/reader\/en\/([^/]+)\/?/);
-    if (!chapterMatch) return;
-
-    const chapterId = chapterMatch[1];
-    if (seen.has(chapterId)) return;
+    const chapterId = extractChapterIdFromLi($, $el, mangaId);
+    if (!chapterId || seen.has(chapterId)) return;
     seen.add(chapterId);
 
     read.push({
@@ -182,5 +223,5 @@ export async function fetchMgekoReadChapters(
     `/manga/${encodeURIComponent(mangaId)}/all-chapters/`,
     sessionId,
   );
-  return parseMgekoReadChapters(html);
+  return parseMgekoReadChapters(html, mangaId);
 }

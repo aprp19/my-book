@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { enrichFavoritesWithChapterUpdates } from "@/lib/favorites/sort-favorites";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -135,10 +136,9 @@ export async function listFavorites() {
   const { data, error } = await supabase
     .from("favorites")
     .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+    .eq("user_id", user.id);
   if (error) throw error;
-  return data ?? [];
+  return enrichFavoritesWithChapterUpdates(data ?? []);
 }
 
 export async function upsertFavorite(payload: FavoritePayload) {
