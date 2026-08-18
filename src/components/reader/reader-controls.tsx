@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, List } from "lucide-react";
+import { BookOpen, ChevronLeft, ChevronRight, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import type { Chapter } from "@/types";
@@ -21,6 +21,10 @@ function chapterHref(
   chapterId: string,
 ) {
   return `/read/${provider}/${encodeURIComponent(chapterId)}?mangaId=${encodeURIComponent(mangaId)}`;
+}
+
+function mangaHref(provider: MangaProviderType, mangaId: string) {
+  return `/manga/${provider}/${encodeURIComponent(mangaId)}`;
 }
 
 export function ReaderChapterControls({
@@ -73,6 +77,16 @@ export function ReaderChapterControls({
           <List className="size-4 shrink-0" aria-hidden="true" />
           <span className="truncate">{chapterLabel}</span>
         </Button>
+
+        <ButtonLink
+          variant="outline"
+          size="icon"
+          aria-label="Manga details"
+          href={mangaHref(provider, mangaId)}
+          className="shrink-0"
+        >
+          <BookOpen className="size-5" aria-hidden="true" />
+        </ButtonLink>
 
         {nextChapter ? (
           <ButtonLink

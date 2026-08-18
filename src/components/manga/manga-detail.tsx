@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -9,13 +9,16 @@ import { FavoriteButton } from "@/components/manga/favorite-button";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Skeleton } from "@/components/ui/skeleton";
 import { upsertMangaView } from "@/lib/actions/user-data";
+import { pickFirstChapter } from "@/lib/chapters/pick-first-chapter";
 import {
-  chaptersPageQueryOptions,
+  chaptersQueryOptions,
   favoriteStatusQueryOptions,
   mangaQueryOptions,
+  mangaReadingResumeQueryOptions,
 } from "@/lib/queries/options";
 import { ProviderError } from "@/lib/providers/errors";
 import type { MangaProviderType } from "@/types";
@@ -28,10 +31,48 @@ interface MangaDetailProps {
 
 export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
   const mangaQuery = useQuery(mangaQueryOptions(provider, id));
-  const latestChapterQuery = useQuery(chaptersPageQueryOptions(provider, id, 1));
+  const resumeQuery = useQuery(
+    mangaReadingResumeQueryOptions(provider, id, Boolean(userId)),
+  );
+  const chaptersQuery = useQuery({
+    ...chaptersQueryOptions(provider, id),
+    enabled:
+      provider !== "anilist" &&
+      (!userId || (!resumeQuery.isLoading && !resumeQuery.data)),
+  });
   const favoriteQuery = useQuery(favoriteStatusQueryOptions(provider, id, Boolean(userId)));
 
   const manga = mangaQuery.data;
+
+  const { readHref, readLabel, readLoading } = useMemo(() => {
+    if (provider === "anilist") {
+      return { readHref: null, readLabel: "", readLoading: false };
+    }
+
+    const resume = resumeQuery.data;
+    const firstChapter = pickFirstChapter(chaptersQuery.data ?? []);
+    const targetChapterId = resume?.chapterId ?? firstChapter?.id ?? null;
+    const readHref = targetChapterId
+      ? `/read/${provider}/${encodeURIComponent(targetChapterId)}?mangaId=${encodeURIComponent(id)}`
+      : null;
+    const readLabel = resume
+      ? `Continue reading · Ch. ${resume.chapterNumber ?? "?"}`
+      : "Start reading";
+    const readLoading =
+      Boolean(userId) && resumeQuery.isLoading
+        ? true
+        : !resume && chaptersQuery.isLoading;
+
+    return { readHref, readLabel, readLoading };
+  }, [
+    provider,
+    id,
+    userId,
+    resumeQuery.data,
+    resumeQuery.isLoading,
+    chaptersQuery.data,
+    chaptersQuery.isLoading,
+  ]);
 
   useEffect(() => {
     if (!userId || !manga) return;
@@ -81,12 +122,7 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
     notFound();
   }
 
-  const latestChapter = latestChapterQuery.data?.chapters[0];
   const favorited = favoriteQuery.data ?? false;
-  const readHref =
-    latestChapter && provider !== "anilist"
-      ? `/read/${provider}/${encodeURIComponent(latestChapter.id)}?mangaId=${encodeURIComponent(id)}`
-      : null;
 
   return (
     <AppShell className="space-y-8 pb-28 md:pb-10">
@@ -179,8 +215,10 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
                 initialFavorited={favorited}
               />
             ) : null}
-            {readHref ? (
-              <ButtonLink href={readHref}>Read latest</ButtonLink>
+            {readLoading ? (
+              <Button disabled>{readLabel}</Button>
+            ) : readHref ? (
+              <ButtonLink href={readHref}>{readLabel}</ButtonLink>
             ) : null}
           </div>
         </div>
@@ -204,9 +242,13 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
           style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
         >
           <div className="mx-auto flex max-w-lg gap-2">
-            {readHref ? (
+            {readLoading ? (
+              <Button className="min-h-11 flex-1" disabled>
+                {readLabel}
+              </Button>
+            ) : readHref ? (
               <ButtonLink href={readHref} className="min-h-11 flex-1">
-                Read latest
+                {readLabel}
               </ButtonLink>
             ) : null}
             {userId ? (

@@ -6,6 +6,7 @@ import {
   listRecentMangaViews,
   isFavorite,
   getReadingProgress,
+  getMangaReadingResume,
   listMangaChapterProgress,
 } from "@/lib/actions/user-data";
 import { CACHE_TTL } from "@/lib/cache/fetch";
@@ -199,6 +200,19 @@ export function mangaChapterProgressQueryOptions(
   return queryOptions({
     queryKey: queryKeys.mangaChapterProgress(provider, mangaId),
     queryFn: () => listMangaChapterProgress(provider, mangaId),
+    staleTime: 30_000,
+    enabled,
+  });
+}
+
+export function mangaReadingResumeQueryOptions(
+  provider: MangaProviderType,
+  mangaId: string,
+  enabled: boolean,
+) {
+  return queryOptions({
+    queryKey: queryKeys.mangaReadingResume(provider, mangaId),
+    queryFn: () => getMangaReadingResume(provider, mangaId),
     staleTime: 30_000,
     enabled,
   });

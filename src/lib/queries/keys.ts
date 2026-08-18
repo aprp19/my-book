@@ -25,4 +25,6 @@ export const queryKeys = {
     ["user", "reading-progress", provider, chapterId] as const,
   mangaChapterProgress: (provider: MangaProviderType, mangaId: string) =>
     ["user", "manga-chapter-progress", provider, mangaId] as const,
+  mangaReadingResume: (provider: MangaProviderType, mangaId: string) =>
+    ["user", "manga-reading-resume", provider, mangaId] as const,
 };

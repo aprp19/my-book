@@ -287,6 +287,35 @@ export async function listMangaChapterProgress(
   return (data ?? []).map((row) => row.external_chapter_id);
 }
 
+export interface MangaReadingResume {
+  chapterId: string;
+  chapterNumber: string | null;
+  page: number;
+}
+
+export async function getMangaReadingResume(
+  provider: string,
+  externalMangaId: string,
+): Promise<MangaReadingResume | null> {
+  const { supabase, user } = await requireUser();
+  const { data, error } = await supabase
+    .from("reading_progress")
+    .select("external_chapter_id, chapter_number, page")
+    .eq("user_id", user.id)
+    .eq("provider", provider)
+    .eq("external_manga_id", externalMangaId)
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  return {
+    chapterId: data.external_chapter_id,
+    chapterNumber: data.chapter_number,
+    page: data.page,
+  };
+}
+
 export async function listContinueReading() {
   const { supabase, user } = await requireUser();
   const { data, error } = await supabase
