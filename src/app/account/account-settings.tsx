@@ -12,6 +12,7 @@ import {
   updateProfile,
   type UserProfile,
 } from "@/lib/actions/user-data";
+import { MgekoImportSection } from "./mgeko-import-section";
 
 interface AccountSettingsProps {
   profile: UserProfile;
@@ -155,6 +156,8 @@ export function AccountSettings({ profile }: AccountSettingsProps) {
           </Button>
         </form>
       </div>
+
+      <MgekoImportSection />
 
       <div className="mx-auto w-full max-w-md space-y-4 rounded-xl border border-destructive/30 bg-destructive/5 p-6">
         <div className="space-y-1">

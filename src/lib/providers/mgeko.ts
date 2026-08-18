@@ -5,6 +5,11 @@ import { CACHE_TTL } from "@/lib/cache/fetch";
 import { toIsoDateString } from "@/lib/utils/date";
 import { ProviderError } from "./errors";
 import { mgekoJsonFetch, mgekoPageFetch, MGEKO_BASE_URL } from "./mgeko-fetch";
+import {
+  chapterNumberFromSlug,
+  decodeHtmlEntities,
+  resolveCoverUrl,
+} from "./mgeko-utils";
 import type { BrowseFeed, BrowseOptions, BrowseSortOption, MangaProvider } from "./types";
 
 // ─── Response shapes ───────────────────────────────────────────────────────────
@@ -32,27 +37,6 @@ interface MgekoBrowseDataResponse {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const MGEKO_COVER_CDN = "https://imgsrv5.com/avatar/288x412";
-
-/**
- * mgeko cover URLs come in three forms:
- *   1. Relative path: /media/manga_covers/... (from API JSON)
- *   2. Absolute without avatar: https://imgsrv5.com/media/manga_covers/...
- *   3. Already correct: https://imgsrv5.com/avatar/288x412/media/manga_covers/...
- *
- * Always normalise to form 3 — the resized avatar path — which reliably returns images.
- */
-function resolveCoverUrl(raw: string | undefined): string | null {
-  if (!raw) return null;
-  if (raw.includes("/avatar/")) return raw;
-  if (raw.startsWith("http")) {
-    // Absolute but missing /avatar/288x412 prefix
-    return raw.replace("https://imgsrv5.com/", `${MGEKO_COVER_CDN}/`);
-  }
-  // Relative path
-  return `${MGEKO_COVER_CDN}${raw}`;
-}
-
 function mapStatus(text: string | undefined): MangaStatus | null {
   const lower = (text ?? "").toLowerCase().trim();
   if (lower === "ongoing") return "ongoing";
@@ -62,23 +46,6 @@ function mapStatus(text: string | undefined): MangaStatus | null {
   return "unknown";
 }
 
-/**
- * Extract chapter number from a mgeko chapter slug.
- * "m-being-misunderstood-as-a-soccer-genius-chapter-6-eng-li" → "6"
- * "apex-future-martial-arts2-chapter-260-eng-li" → "260"
- * Also handles decimal chapters like "314-5-eng-li" (i.e. 314.5)
- */
-function chapterNumberFromSlug(slug: string): string | null {
-  const match = slug.match(/chapter-([\d]+(?:[-.]\d+)?)-eng-li\/?$/i);
-  if (!match) return null;
-  // Normalise "314-5" → "314.5"
-  return match[1].replace("-", ".");
-}
-
-/**
- * Extract the manga slug from a chapter slug by stripping the chapter part.
- * "m-being-misunderstood-as-a-soccer-genius-chapter-6-eng-li" → "m-being-misunderstood-as-a-soccer-genius"
- */
 function mangaSlugFromChapterSlug(chapterSlug: string): string {
   return chapterSlug.replace(/-chapter-[\d].*$/i, "");
 }
@@ -107,17 +74,6 @@ function normalizeMgekoManga(
     genres: [],
     lastUpdatedAt: normalizeProviderDate(lastUpdatedAt),
   };
-}
-
-/** Simple HTML entity decoder for common cases. */
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&#x27;/g, "'")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
