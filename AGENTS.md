@@ -1,12 +1,12 @@
 # my-book
 
-Next.js book site (early scaffold).
+Personal Manga Reader — search, read, and track manga/manhwa from external providers (ComicK, MangaDex, AniList). Full implementation plan: `PLAN.md — Personal Manga Reader.md`.
 
 ## Project overview
 
-- **Stack:** Next.js 16.3, React 19, Tailwind CSS 4, TypeScript, pnpm
+- **Stack:** Next.js 16.3, React 19, Tailwind CSS 4, TypeScript, pnpm, shadcn/ui, Zustand
 - **Layout:** App Router under `src/app/`
-- **Backend:** Supabase (skill installed; env vars in `.env` when configured)
+- **Backend:** Supabase Auth + PostgreSQL (favorites, reading progress, manga view history only — no image/catalog mirroring)
 - **Commands:** `pnpm dev`, `pnpm build`, `pnpm lint`
 
 ## Agent skills

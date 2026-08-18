@@ -12,6 +12,7 @@ The application should:
 - Open chapters in a reader.
 - Load page images directly from external providers.
 - Track reading progress.
+- Show reading and browsing history on the home page.
 - Save favorite manga.
 - Support multiple manga providers.
 - Avoid storing manga chapter images locally.
@@ -227,6 +228,11 @@ src/
 │   ├── chapter/
 │   │   ├── chapter-list.tsx
 │   │   └── chapter-item.tsx
+│   │
+│   ├── history/
+│   │   ├── history-section.tsx
+│   │   ├── recent-chapters.tsx
+│   │   └── recent-manga.tsx
 │   │
 │   └── reader/
 │       ├── reader.tsx
@@ -647,6 +653,39 @@ on reading_progress(user_id, updated_at desc);
 
 ---
 
+## manga_views
+
+```sql
+id uuid primary key default gen_random_uuid(),
+
+user_id uuid not null
+  references auth.users(id)
+  on delete cascade,
+
+provider text not null,
+
+external_manga_id text not null,
+
+title text not null,
+
+cover_url text,
+
+viewed_at timestamptz not null default now(),
+
+unique(user_id, provider, external_manga_id)
+```
+
+Add an index:
+
+```sql
+create index idx_manga_views_user_viewed
+on manga_views(user_id, viewed_at desc);
+```
+
+Recently read chapters use `reading_progress` (indexed by `updated_at`). Do not duplicate chapter data in `manga_views`.
+
+---
+
 # 15. Row Level Security
 
 Enable RLS on all user-owned tables.
@@ -663,7 +702,17 @@ using (auth.uid() = user_id)
 with check (auth.uid() = user_id);
 ```
 
-Same principle for `reading_progress`.
+Same principle for `reading_progress` and `manga_views`.
+
+Example for `manga_views`:
+
+```sql
+create policy "Users can manage their own manga views"
+on manga_views
+for all
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+```
 
 Never trust `user_id` supplied by the client.
 
@@ -899,6 +948,36 @@ Sort by:
 updated_at DESC
 ```
 
+Shows resumable items (latest chapter per manga). Distinct from History, which shows a chronological feed of all recent activity.
+
+---
+
+# 23.5 History
+
+Home page section for authenticated users only. No dedicated `/history` route.
+
+## Recently read chapters
+
+- Query `reading_progress` for the authenticated user.
+- Sort by `updated_at DESC`.
+- Limit to 20 items.
+- Display: manga title, chapter number/title, page, relative time.
+- Tap → open reader at saved page.
+
+## Recently viewed manga
+
+- Record a view when the user opens a manga detail page (`/manga/[provider]/[id]`).
+- Upsert into `manga_views` (update `viewed_at`, refresh `title`/`cover_url` if changed).
+- Query sorted by `viewed_at DESC`, limit 20.
+- Display: cover, title, provider badge, relative time.
+- Tap → manga detail page.
+
+## Rules
+
+- Hide the History section for unauthenticated users.
+- View recording on manga detail is fire-and-forget (one upsert per page load; no debounce).
+- Do not store provider catalog data in `manga_views` beyond display fields (`title`, `cover_url`).
+
 ---
 
 # 24. Home Page
@@ -914,6 +993,15 @@ Initial home page:
 ├─────────────────────────────────┤
 │ Continue Reading                │
 │                                 │
+│ [Manga] [Manga] [Manga]         │
+│                                 │
+├─────────────────────────────────┤
+│ History                         │
+│                                 │
+│ Recently Read                   │
+│ [Chapter] [Chapter] [Chapter]   │
+│                                 │
+│ Recently Viewed                 │
 │ [Manga] [Manga] [Manga]         │
 │                                 │
 ├─────────────────────────────────┤
@@ -971,6 +1059,7 @@ Display:
 - Favorite button
 - Chapter list
 - Continue reading button
+- Record view to `manga_views` on successful page load (server action or route handler; auth required)
 
 Chapter list should support:
 
@@ -1203,6 +1292,8 @@ Continue from previous position
 - [ ] Enable RLS.
 - [ ] Add favorites table.
 - [ ] Add reading_progress table.
+- [ ] Add manga_views table.
+- [ ] Enable RLS on manga_views.
 - [ ] Create server/client Supabase helpers.
 - [ ] Implement auth middleware.
 
@@ -1218,6 +1309,10 @@ Continue from previous position
 - [ ] Build chapter list.
 - [ ] Build favorite button.
 - [ ] Build continue-reading section.
+- [ ] Build History section on home page.
+- [ ] Build recent chapters list.
+- [ ] Build recently viewed manga list.
+- [ ] Record manga views on detail page load.
 
 ---
 
@@ -1242,6 +1337,7 @@ Continue from previous position
 - [ ] Loading skeletons.
 - [ ] Error states.
 - [ ] Empty states.
+- [ ] Empty state for History ("Nothing here yet — start reading").
 - [ ] Image failure handling.
 - [ ] Dark mode.
 - [ ] Responsive mobile UI.
@@ -1307,6 +1403,8 @@ The project is considered MVP-complete when Mas Angga can:
 11. Reopen the website.
 12. See the manga in Continue Reading.
 13. Resume from the previous page.
+14. Open a manga detail page and see it under Recently Viewed on home.
+15. Read a chapter and see it under Recently Read on home.
 
 The application must not store manga images locally.
 
@@ -1340,6 +1438,7 @@ When implementing this plan:
 18. Prefer small composable functions.
 19. Keep business logic outside React components.
 20. Do not over-engineer the MVP.
+21. Do not store provider catalog data in `manga_views` beyond display fields (`title`, `cover_url`).
 
 ---
 
