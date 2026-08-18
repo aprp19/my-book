@@ -89,30 +89,31 @@ export function LibrarySections({ userId }: LibrarySectionsProps) {
             <h3 className="mb-3 text-sm font-medium text-muted-foreground">
               Recently Read
             </h3>
-            <ScrollArea className="max-h-80 rounded-xl border border-border">
-              <div className="space-y-1 p-1">
-                {recentChapters.length === 0 ? (
-                  <p className="px-3 py-4 text-sm text-muted-foreground">
-                    Nothing here yet — start reading.
-                  </p>
-                ) : (
-                  recentChapters.map((row) => (
-                    <Link
-                      key={row.id}
-                      href={`/read/${row.provider}/${encodeURIComponent(row.external_chapter_id)}?mangaId=${encodeURIComponent(row.external_manga_id)}`}
-                      className="flex min-h-12 items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm hover:bg-muted/50"
-                    >
-                      <span className="min-w-0 truncate">
-                        {row.manga_title ?? "Unknown"} · Ch. {row.chapter_number ?? "?"}{" "}
-                        · p.{row.page + 1}
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                        {formatDistanceToNow(row.updated_at)}
-                      </span>
-                    </Link>
-                  ))
-                )}
-              </div>
+            <ScrollArea className="h-[min(320px,50vh)] rounded-xl border border-border">
+              {recentChapters.length === 0 ? (
+                <p className="px-4 py-6 text-sm text-muted-foreground">
+                  Nothing here yet — start reading.
+                </p>
+              ) : (
+                <ul className="divide-y divide-border p-1">
+                  {recentChapters.map((row) => (
+                    <li key={row.id}>
+                      <Link
+                        href={`/read/${row.provider}/${encodeURIComponent(row.external_chapter_id)}?mangaId=${encodeURIComponent(row.external_manga_id)}`}
+                        className="flex min-h-12 items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm hover:bg-muted/50"
+                      >
+                        <span className="min-w-0 truncate">
+                          {row.manga_title ?? "Unknown"} · Ch. {row.chapter_number ?? "?"}{" "}
+                          · p.{row.page + 1}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                          {formatDistanceToNow(row.updated_at)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </ScrollArea>
           </div>
           <div>

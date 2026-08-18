@@ -142,15 +142,11 @@ function extractChapterIdFromLi(
 }
 
 function isReadChapterLi($el: cheerio.Cheerio<any>): boolean {
-  // mgeko marks viewed chapters with fa-eye-slash (see changeViewStatus in new_app.js)
-  if ($el.find(".fa-eye-slash").length > 0) return true;
-
-  // When the view toggle is present, fa-eye explicitly means unread.
-  if (
-    $el.find(".fa-eye").length > 0 &&
-    $el.find("[onclick*='changeViewStatus']").length > 0
-  ) {
-    return false;
+  const viewToggle = $el.find("[onclick*='changeViewStatus']");
+  if (viewToggle.length > 0) {
+    // fa-eye = viewed/read; fa-eye-slash = hidden/unread
+    if (viewToggle.hasClass("fa-eye-slash")) return false;
+    if (viewToggle.hasClass("fa-eye")) return true;
   }
 
   const cls = ($el.attr("class") ?? "").toLowerCase();

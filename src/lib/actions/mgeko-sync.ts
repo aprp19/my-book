@@ -32,6 +32,25 @@ async function requireUser() {
   return { supabase, user };
 }
 
+async function clearMgekoSyncedData(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+) {
+  const { error: progressError } = await supabase
+    .from("reading_progress")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "mgeko");
+  if (progressError) throw progressError;
+
+  const { error: favoritesError } = await supabase
+    .from("favorites")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "mgeko");
+  if (favoritesError) throw favoritesError;
+}
+
 async function upsertSyncedFavorite(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
@@ -58,32 +77,16 @@ async function upsertSyncedReadingProgressBatch(
 ) {
   if (chapters.length === 0) return;
 
-  const chapterIds = chapters.map((c) => c.chapterId);
-  const { data: existingRows } = await supabase
-    .from("reading_progress")
-    .select("external_chapter_id, page")
-    .eq("user_id", userId)
-    .eq("provider", "mgeko")
-    .in("external_chapter_id", chapterIds);
-
-  const pageByChapter = new Map(
-    (existingRows ?? []).map((row) => [row.external_chapter_id, row.page]),
-  );
-
-  const rows = chapters.map((chapter) => {
-    const existingPage = pageByChapter.get(chapter.chapterId);
-    const page = existingPage && existingPage > 0 ? existingPage : 0;
-    return {
-      user_id: userId,
-      provider: "mgeko" as const,
-      external_manga_id: bookmark.mangaId,
-      external_chapter_id: chapter.chapterId,
-      chapter_number: chapter.chapterNumber,
-      manga_title: bookmark.title,
-      page,
-      updated_at: new Date().toISOString(),
-    };
-  });
+  const rows = chapters.map((chapter) => ({
+    user_id: userId,
+    provider: "mgeko" as const,
+    external_manga_id: bookmark.mangaId,
+    external_chapter_id: chapter.chapterId,
+    chapter_number: chapter.chapterNumber,
+    manga_title: bookmark.title,
+    page: 0,
+    updated_at: new Date().toISOString(),
+  }));
 
   const { error } = await supabase
     .from("reading_progress")
@@ -140,6 +143,8 @@ export async function syncFromMgeko(sessionId: string): Promise<MgekoSyncResult>
       message: `Imported first ${MAX_SERIES} of ${bookmarks.length} bookmarks (limit reached).`,
     });
   }
+
+  await clearMgekoSyncedData(supabase, user.id);
 
   let chaptersImported = 0;
 

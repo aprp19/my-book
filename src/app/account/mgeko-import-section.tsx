@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ExternalLink, RefreshCw } from "lucide-react";
+import { ChevronDown, ExternalLink, RefreshCw, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -54,8 +54,24 @@ export function MgekoImportSection() {
           Import from Mgeko
         </h2>
         <p className="text-sm text-muted-foreground">
-          One-time import of bookmarks and read chapters from your mgeko account.
-          Your session ID is used only for this sync and is never stored.
+          Import bookmarks and read chapters from your mgeko account. Your session
+          ID is used only for this sync and is never stored.
+        </p>
+      </div>
+
+      <div
+        className="flex gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm"
+        role="note"
+      >
+        <TriangleAlert
+          className="mt-0.5 size-4 shrink-0 text-primary"
+          aria-hidden="true"
+        />
+        <p>
+          <strong className="font-medium text-foreground">This replaces your mgeko library.</strong>{" "}
+          Syncing deletes all existing mgeko favorites and read progress in this
+          app, then imports fresh data from mgeko. Other providers and in-app
+          reading history are not affected.
         </p>
       </div>
 

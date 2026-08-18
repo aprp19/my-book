@@ -76,7 +76,7 @@ describe("parseMgekoBookmarks", () => {
 describe("parseMgekoReadChapters", () => {
   const mangaId = "the-regressed-mercenarys-machinations";
 
-  it("parses read chapters from fa-eye-slash markers on all-chapters page", () => {
+  it("parses read chapters from fa-eye markers on all-chapters page", () => {
     const html = `
       <ul class="chapter-list">
         <li>
@@ -95,17 +95,17 @@ describe("parseMgekoReadChapters", () => {
           <a href="/reader/en/the-regressed-mercenarys-machinations-chapter-100-eng-li/">
             <strong class="chapter-title">100-eng-li</strong>
           </a>
-          <i class="fas fa-eye-slash" onclick="changeViewStatus(event, '100-eng-li')"></i>
+          <i class="fas fa-eye" onclick="changeViewStatus(event, '100-eng-li')"></i>
         </li>
       </ul>
     `;
 
     const read = parseMgekoReadChapters(html, mangaId);
     expect(read.map((c) => c.chapterId)).toEqual([
-      "the-regressed-mercenarys-machinations-chapter-102-eng-li",
+      "the-regressed-mercenarys-machinations-chapter-101-eng-li",
       "the-regressed-mercenarys-machinations-chapter-100-eng-li",
     ]);
-    expect(read[0].chapterNumber).toBe("102");
+    expect(read[0].chapterNumber).toBe("101");
   });
 
   it("still supports visited list item class markers", () => {
