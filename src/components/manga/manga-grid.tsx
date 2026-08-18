@@ -9,6 +9,7 @@ interface MangaGridItem {
   coverUrl: string | null;
   subtitle?: string;
   href?: string;
+  hasNewChapter?: boolean;
 }
 
 interface MangaGridProps {

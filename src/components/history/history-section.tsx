@@ -12,12 +12,11 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button-link";
 import {
   continueReadingQueryOptions,
-  favoritesQueryOptions,
   recentChaptersQueryOptions,
   recentViewsQueryOptions,
 } from "@/lib/queries/options";
-import { formatChapterReleaseDate, formatDistanceToNow } from "@/lib/utils/date";
-import type { MangaProviderType } from "@/types";
+import { FavoritesSection } from "@/components/library/favorites-section";
+import { formatDistanceToNow } from "@/lib/utils/date";
 
 interface LibrarySectionsProps {
   userId: string | null;
@@ -29,7 +28,6 @@ export function LibrarySections({ userId }: LibrarySectionsProps) {
   const continueReadingQuery = useQuery(continueReadingQueryOptions(enabled));
   const recentChaptersQuery = useQuery(recentChaptersQueryOptions(enabled));
   const recentViewsQuery = useQuery(recentViewsQueryOptions(enabled));
-  const favoritesQuery = useQuery(favoritesQueryOptions(enabled));
 
   if (!userId) {
     return (
@@ -45,8 +43,7 @@ export function LibrarySections({ userId }: LibrarySectionsProps) {
   const isLoading =
     continueReadingQuery.isLoading ||
     recentChaptersQuery.isLoading ||
-    recentViewsQuery.isLoading ||
-    favoritesQuery.isLoading;
+    recentViewsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -60,7 +57,6 @@ export function LibrarySections({ userId }: LibrarySectionsProps) {
   const continueReading = continueReadingQuery.data ?? [];
   const recentChapters = recentChaptersQuery.data ?? [];
   const recentViews = recentViewsQuery.data ?? [];
-  const favorites = favoritesQuery.data ?? [];
 
   return (
     <div className="space-y-10">
@@ -136,21 +132,7 @@ export function LibrarySections({ userId }: LibrarySectionsProps) {
 
       <Separator />
 
-      <section className="space-y-4">
-        <SectionHeader title="Favorites" />
-        <MangaGrid
-          variant="carousel"
-          items={favorites.map((row) => ({
-            id: row.external_manga_id,
-            provider: row.provider as MangaProviderType,
-            title: row.title,
-            coverUrl: row.cover_url,
-            subtitle:
-              formatChapterReleaseDate(row.lastChapterUpdatedAt) ?? undefined,
-          }))}
-          emptyMessage="No favorites yet — heart a series on its detail page."
-        />
-      </section>
+      <FavoritesSection userId={userId} />
     </div>
   );
 }

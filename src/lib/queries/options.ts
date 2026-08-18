@@ -1,4 +1,4 @@
-import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, keepPreviousData, queryOptions } from "@tanstack/react-query";
 import {
   listContinueReading,
   listFavorites,
@@ -128,12 +128,13 @@ export function pagesQueryOptions(provider: MangaProviderType, chapterId: string
   });
 }
 
-export function favoritesQueryOptions(enabled: boolean) {
+export function favoritesQueryOptions(enabled: boolean, page = 1) {
   return queryOptions({
-    queryKey: queryKeys.favorites(),
-    queryFn: listFavorites,
+    queryKey: queryKeys.favorites(page),
+    queryFn: () => listFavorites({ page }),
     staleTime: 60_000,
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 

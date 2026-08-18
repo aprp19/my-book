@@ -26,6 +26,7 @@ describe("queryKeys", () => {
 
   it("builds stable user keys", () => {
     expect(queryKeys.favorites()).toEqual(["user", "favorites"]);
+    expect(queryKeys.favorites(2)).toEqual(["user", "favorites", 2]);
     expect(queryKeys.continueReading()).toEqual(["user", "continue-reading"]);
     expect(queryKeys.recentChapters()).toEqual(["user", "recent-chapters"]);
     expect(queryKeys.recentViews()).toEqual(["user", "recent-views"]);

@@ -3,6 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { enrichFavoritesWithChapterUpdates } from "@/lib/favorites/sort-favorites";
+import {
+  FAVORITES_PAGE_SIZE,
+  favoritesPageCount,
+} from "@/lib/favorites/constants";
+import {
+  computeHasNewChapter,
+  favoriteProgressKey,
+} from "@/lib/favorites/new-chapter";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
@@ -131,14 +139,76 @@ export async function deleteAccount() {
   redirect("/");
 }
 
-export async function listFavorites() {
+export interface FavoritesPageResult {
+  items: Awaited<ReturnType<typeof enrichFavoritesWithChapterUpdates>>;
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  hasMore: boolean;
+}
+
+export async function listFavorites(options?: {
+  page?: number;
+  limit?: number;
+}): Promise<FavoritesPageResult> {
   const { supabase, user } = await requireUser();
-  const { data, error } = await supabase
+  const page = Math.max(1, options?.page ?? 1);
+  const pageSize = options?.limit ?? FAVORITES_PAGE_SIZE;
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await supabase
     .from("favorites")
-    .select("*")
-    .eq("user_id", user.id);
+    .select("*", { count: "exact" })
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
   if (error) throw error;
-  return enrichFavoritesWithChapterUpdates(data ?? []);
+
+  const total = count ?? 0;
+  const items = await enrichFavoritesWithChapterUpdates(data ?? [], {
+    sort: false,
+  });
+
+  if (items.length > 0) {
+    const mangaIds = [...new Set(items.map((row) => row.external_manga_id))];
+    const { data: progressRows, error: progressError } = await supabase
+      .from("reading_progress")
+      .select("provider, external_manga_id, external_chapter_id")
+      .eq("user_id", user.id)
+      .in("external_manga_id", mangaIds);
+
+    if (progressError) throw progressError;
+
+    const readByManga = new Map<string, Set<string>>();
+    for (const row of progressRows ?? []) {
+      const key = favoriteProgressKey(row.provider, row.external_manga_id);
+      const chapters = readByManga.get(key) ?? new Set<string>();
+      chapters.add(row.external_chapter_id);
+      readByManga.set(key, chapters);
+    }
+
+    for (const item of items) {
+      const key = favoriteProgressKey(item.provider, item.external_manga_id);
+      const readChapterIds = readByManga.get(key) ?? new Set<string>();
+      item.hasNewChapter = computeHasNewChapter(
+        item.latestChapterId,
+        readChapterIds,
+        readChapterIds.size > 0,
+      );
+    }
+  }
+
+  return {
+    items,
+    total,
+    page,
+    pageSize,
+    pageCount: favoritesPageCount(total, pageSize),
+    hasMore: page < favoritesPageCount(total, pageSize),
+  };
 }
 
 export async function upsertFavorite(payload: FavoritePayload) {

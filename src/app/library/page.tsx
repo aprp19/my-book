@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
 import { LibrarySections } from "@/components/history/history-section";
@@ -16,7 +17,13 @@ export default async function LibraryPage() {
             : "Sign in to save favorites, history, and reading progress."
         }
       />
-      <LibrarySections userId={user?.id ?? null} />
+      <Suspense
+        fallback={
+          <div className="py-8 text-sm text-muted-foreground">Loading library…</div>
+        }
+      >
+        <LibrarySections userId={user?.id ?? null} />
+      </Suspense>
     </AppShell>
   );
 }

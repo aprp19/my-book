@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { CircleAlert } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { MangaProviderType } from "@/types";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,7 @@ interface MangaCardProps {
   className?: string;
   /** Hide provider badge on grid cards (shown on detail only) */
   showProvider?: boolean;
+  hasNewChapter?: boolean;
 }
 
 function mgekoCoverFallback(originalSrc: string): string {
@@ -61,14 +64,29 @@ export function MangaCard({
   href,
   className,
   showProvider = false,
+  hasNewChapter = false,
 }: MangaCardProps) {
   const link = href ?? `/manga/${provider}/${encodeURIComponent(id)}`;
+  const ariaLabel = hasNewChapter ? `${title} — new chapter available` : title;
 
   return (
-    <Link href={link} className={cn("group block touch-manipulation", className)}>
+    <Link
+      href={link}
+      aria-label={ariaLabel}
+      className={cn("group block touch-manipulation", className)}
+    >
       <Card className="overflow-hidden border-border/60 py-0 transition-colors hover:border-primary/40">
         <CardContent className="p-0">
           <div className="relative aspect-[2/3] bg-muted">
+            {hasNewChapter ? (
+              <Badge
+                variant="default"
+                className="absolute right-2 top-2 z-10 shadow-sm"
+              >
+                <CircleAlert aria-hidden="true" />
+                New chapter
+              </Badge>
+            ) : null}
             {coverUrl ? (
               <CoverImage src={coverUrl} alt={title} />
             ) : (

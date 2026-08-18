@@ -13,6 +13,8 @@ describe("sortFavoritesByChapterUpdate", () => {
         cover_url: null,
         created_at: "2026-01-01T00:00:00.000Z",
         lastChapterUpdatedAt: "2026-01-10T00:00:00.000Z",
+        latestChapterId: "old-ch-1",
+        hasNewChapter: false,
       },
       {
         id: "2",
@@ -23,6 +25,8 @@ describe("sortFavoritesByChapterUpdate", () => {
         cover_url: null,
         created_at: "2026-01-05T00:00:00.000Z",
         lastChapterUpdatedAt: "2026-08-18T00:00:00.000Z",
+        latestChapterId: "new-ch-1",
+        hasNewChapter: true,
       },
       {
         id: "3",
@@ -33,6 +37,8 @@ describe("sortFavoritesByChapterUpdate", () => {
         cover_url: null,
         created_at: "2026-02-01T00:00:00.000Z",
         lastChapterUpdatedAt: null,
+        latestChapterId: null,
+        hasNewChapter: false,
       },
     ]);
 

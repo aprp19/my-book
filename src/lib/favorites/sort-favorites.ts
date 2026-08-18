@@ -11,8 +11,15 @@ export interface FavoriteRow {
   created_at: string;
 }
 
+export interface LatestChapterInfo {
+  id: string;
+  publishedAt: string | null;
+}
+
 export interface FavoriteWithChapterUpdate extends FavoriteRow {
   lastChapterUpdatedAt: string | null;
+  latestChapterId: string | null;
+  hasNewChapter: boolean;
 }
 
 const FAVORITE_UPDATE_CONCURRENCY = 6;
@@ -33,10 +40,10 @@ export function sortFavoritesByChapterUpdate<T extends FavoriteWithChapterUpdate
   });
 }
 
-export async function fetchLatestChapterUpdatedAt(
+export async function fetchLatestChapter(
   provider: string,
   mangaId: string,
-): Promise<string | null> {
+): Promise<LatestChapterInfo | null> {
   if (!isMangaProviderType(provider)) return null;
 
   try {
@@ -44,7 +51,9 @@ export async function fetchLatestChapterUpdatedAt(
       page: 1,
       limit: 1,
     });
-    return result.chapters[0]?.publishedAt ?? null;
+    const latest = result.chapters[0];
+    if (!latest) return null;
+    return { id: latest.id, publishedAt: latest.publishedAt ?? null };
   } catch {
     return null;
   }
@@ -69,18 +78,21 @@ async function mapPool<T>(
 
 export async function enrichFavoritesWithChapterUpdates(
   favorites: FavoriteRow[],
+  options: { sort?: boolean } = {},
 ): Promise<FavoriteWithChapterUpdate[]> {
+  const sort = options.sort ?? true;
   const enriched: FavoriteWithChapterUpdate[] = favorites.map((row) => ({
     ...row,
     lastChapterUpdatedAt: null,
+    latestChapterId: null,
+    hasNewChapter: false,
   }));
 
   await mapPool(enriched, FAVORITE_UPDATE_CONCURRENCY, async (row) => {
-    row.lastChapterUpdatedAt = await fetchLatestChapterUpdatedAt(
-      row.provider,
-      row.external_manga_id,
-    );
+    const latest = await fetchLatestChapter(row.provider, row.external_manga_id);
+    row.latestChapterId = latest?.id ?? null;
+    row.lastChapterUpdatedAt = latest?.publishedAt ?? null;
   });
 
-  return sortFavoritesByChapterUpdate(enriched);
+  return sort ? sortFavoritesByChapterUpdate(enriched) : enriched;
 }

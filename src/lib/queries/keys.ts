@@ -12,7 +12,10 @@ export const queryKeys = {
     ["chapters", provider, id] as const,
   pages: (provider: MangaProviderType, chapterId: string) =>
     ["pages", provider, chapterId] as const,
-  favorites: () => ["user", "favorites"] as const,
+  favorites: (page?: number) =>
+    page === undefined
+      ? (["user", "favorites"] as const)
+      : (["user", "favorites", page] as const),
   continueReading: () => ["user", "continue-reading"] as const,
   recentChapters: () => ["user", "recent-chapters"] as const,
   recentViews: () => ["user", "recent-views"] as const,
