@@ -1,6 +1,6 @@
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { MgekoAuthError } from "@/lib/providers/mgeko-auth-fetch";
+import { MgekoAuthError, validateMgekoSession } from "@/lib/providers/mgeko-auth-fetch";
 import {
   parseMgekoBookmarkExport,
   resolveMgekoExportBookmarks,
@@ -40,6 +40,7 @@ export interface MgekoSyncProgress {
 export interface RunMgekoSyncInput {
   sessionId: string;
   bookmarkExportText?: string;
+  csrfToken?: string;
 }
 
 export interface RunMgekoSyncContext {
@@ -149,6 +150,7 @@ export async function runMgekoSync(
 ): Promise<MgekoSyncResult> {
   const sessionId = validateSessionId(input.sessionId);
   const exportText = input.bookmarkExportText?.trim();
+  const fetchOptions = { csrfToken: input.csrfToken?.trim() || undefined };
 
   const result: MgekoSyncResult = {
     favoritesImported: 0,
@@ -158,6 +160,19 @@ export async function runMgekoSync(
   };
 
   let bookmarks: MgekoBookmark[];
+
+  onProgress?.({ phase: "fetching_bookmarks", current: 0, total: 1 });
+
+  try {
+    await validateMgekoSession(sessionId, fetchOptions);
+  } catch (error) {
+    if (error instanceof MgekoAuthError) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
+  onProgress?.({ phase: "fetching_bookmarks", current: 1, total: 1 });
 
   if (exportText) {
     onProgress?.({ phase: "resolving_titles", current: 0, total: 1 });
@@ -178,10 +193,8 @@ export async function runMgekoSync(
     result.errors.push(...resolved.errors);
     bookmarks = resolved.bookmarks;
   } else {
-    onProgress?.({ phase: "fetching_bookmarks", current: 0, total: 1 });
-
     try {
-      bookmarks = await fetchMgekoBookmarks(sessionId);
+      bookmarks = await fetchMgekoBookmarks(sessionId, fetchOptions);
     } catch (error) {
       if (error instanceof MgekoAuthError) {
         throw new Error(error.message);
@@ -193,6 +206,7 @@ export async function runMgekoSync(
       phase: "fetching_bookmarks",
       current: 1,
       total: 1,
+      label: `${bookmarks.length} bookmarks`,
     });
   }
 
@@ -232,6 +246,7 @@ export async function runMgekoSync(
         const readPage = await fetchMgekoReadChapters(
           sessionId,
           bookmark.mangaId,
+          fetchOptions,
         );
         sawChapterRows += readPage.chapterRowCount;
         sawViewMarkers ||= readPage.hasViewMarkers;
@@ -297,7 +312,7 @@ export async function runMgekoSync(
       result.errors.push({
         mangaId: "*",
         message:
-          "No read markers (eye icons) found on mgeko chapter pages. Your sessionid may be expired — log in on mgeko, open an all-chapters page and confirm you see eye icons, then sync with a fresh sessionid.",
+          "No read markers (eye icons) found on mgeko chapter pages. Your session may not be reaching personalized pages — log in on mgeko, open an all-chapters page and confirm eye icons appear next to chapters, then sync with a fresh sessionid (and optional csrftoken cookie).",
       });
     }
   }

@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { MgekoAuthError, mgekoAuthFetchHtml } from "./mgeko-auth-fetch";
+import { MGEKO_BASE_URL } from "./mgeko-fetch";
 import {
   chapterNumberFromSlug,
   decodeHtmlEntities,
@@ -141,11 +142,24 @@ function extractChapterIdFromLi(
   return null;
 }
 
-function liEyeReadState($el: cheerio.Cheerio<any>): "read" | "unread" | "unknown" {
-  const blob = `${$el.attr("class") ?? ""} ${$el.html() ?? ""}`;
+const CHANGE_VIEW_STATUS_RE =
+  /changeViewStatus\s*\(\s*event\s*,\s*['"]([^'"]+)['"]\s*\)/i;
+
+function eyeReadStateFromClassBlob(blob: string): "read" | "unread" | "unknown" {
   if (/\bfa-eye-slash\b/.test(blob)) return "unread";
   if (/\bfa-eye\b/.test(blob)) return "read";
   return "unknown";
+}
+
+function toggleEyeReadState($toggle: cheerio.Cheerio<any>): "read" | "unread" | "unknown" {
+  const icon = $toggle.is("i, svg") ? $toggle : $toggle.find("i, svg").first();
+  const blob = `${icon.attr("class") ?? ""} ${$toggle.attr("class") ?? ""}`;
+  return eyeReadStateFromClassBlob(blob);
+}
+
+function liEyeReadState($el: cheerio.Cheerio<any>): "read" | "unread" | "unknown" {
+  const blob = `${$el.attr("class") ?? ""} ${$el.html() ?? ""}`;
+  return eyeReadStateFromClassBlob(blob);
 }
 
 function liHasViewToggle($el: cheerio.Cheerio<any>): boolean {
@@ -200,6 +214,34 @@ function getChapterListItems($: cheerio.CheerioAPI): cheerio.Cheerio<any> {
   });
 }
 
+function parseReadChaptersFromViewToggles(
+  $: cheerio.CheerioAPI,
+  mangaId: string,
+  seen: Set<string>,
+): MgekoReadChapter[] {
+  const read: MgekoReadChapter[] = [];
+
+  $('[onclick*="changeViewStatus"]').each((_, el) => {
+    const $toggle = $(el);
+    const onclick = $toggle.attr("onclick") ?? "";
+    const match = onclick.match(CHANGE_VIEW_STATUS_RE);
+    if (!match) return;
+
+    if (toggleEyeReadState($toggle) !== "read") return;
+
+    const chapterId = resolveMgekoChapterId(mangaId, match[1]);
+    if (!chapterId || seen.has(chapterId)) return;
+    seen.add(chapterId);
+
+    read.push({
+      chapterId,
+      chapterNumber: chapterNumberFromSlug(chapterId),
+    });
+  });
+
+  return read;
+}
+
 export function parseMgekoReadChaptersPage(
   html: string,
   mangaId: string,
@@ -208,6 +250,10 @@ export function parseMgekoReadChaptersPage(
   const read: MgekoReadChapter[] = [];
   const seen = new Set<string>();
   const chapterItems = getChapterListItems($);
+
+  if (html.includes("changeViewStatus")) {
+    read.push(...parseReadChaptersFromViewToggles($, mangaId, seen));
+  }
 
   chapterItems.each((_, el) => {
     const $el = $(el);
@@ -237,18 +283,61 @@ export function parseMgekoReadChapters(
   return parseMgekoReadChaptersPage(html, mangaId).chapters;
 }
 
-export async function fetchMgekoBookmarks(sessionId: string): Promise<MgekoBookmark[]> {
-  const html = await mgekoAuthFetchHtml("/portal/bookmark/", sessionId);
+export interface MgekoSyncFetchOptions {
+  csrfToken?: string;
+}
+
+export async function fetchMgekoBookmarks(
+  sessionId: string,
+  options: MgekoSyncFetchOptions = {},
+): Promise<MgekoBookmark[]> {
+  const html = await mgekoAuthFetchHtml("/portal/bookmark/", sessionId, {
+    referer: `${MGEKO_BASE_URL}/portal/bookmark/`,
+    csrfToken: options.csrfToken,
+  });
   return parseMgekoBookmarks(html);
+}
+
+async function fetchAllChaptersHtml(
+  sessionId: string,
+  mangaId: string,
+  options: MgekoSyncFetchOptions,
+  pathPrefix = "/manga",
+): Promise<string> {
+  const path = `${pathPrefix}/${encodeURIComponent(mangaId)}/all-chapters/`;
+  return mgekoAuthFetchHtml(path, sessionId, {
+    referer: `${MGEKO_BASE_URL}${path}`,
+    csrfToken: options.csrfToken,
+  });
 }
 
 export async function fetchMgekoReadChapters(
   sessionId: string,
   mangaId: string,
+  options: MgekoSyncFetchOptions = {},
 ): Promise<MgekoReadChaptersParseResult> {
-  const html = await mgekoAuthFetchHtml(
-    `/manga/${encodeURIComponent(mangaId)}/all-chapters/`,
-    sessionId,
-  );
-  return parseMgekoReadChaptersPage(html, mangaId);
+  const html = await fetchAllChaptersHtml(sessionId, mangaId, options);
+  let result = parseMgekoReadChaptersPage(html, mangaId);
+
+  if (result.chapterRowCount > 0 && !result.hasViewMarkers) {
+    try {
+      const jumboHtml = await fetchAllChaptersHtml(
+        sessionId,
+        mangaId,
+        options,
+        "/jumbo/manga",
+      );
+      const jumboResult = parseMgekoReadChaptersPage(jumboHtml, mangaId);
+      if (
+        jumboResult.hasViewMarkers ||
+        jumboResult.chapters.length > result.chapters.length
+      ) {
+        result = jumboResult;
+      }
+    } catch {
+      // jumbo path is optional; keep the standard result
+    }
+  }
+
+  return result;
 }

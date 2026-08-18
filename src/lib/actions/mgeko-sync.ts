@@ -22,6 +22,7 @@ async function requireUser() {
 export async function syncFromMgeko(input: {
   sessionId: string;
   bookmarkExportText?: string;
+  csrfToken?: string;
 }): Promise<MgekoSyncResult> {
   const { supabase, user } = await requireUser();
   return runMgekoSync(
@@ -29,6 +30,7 @@ export async function syncFromMgeko(input: {
     {
       sessionId: input.sessionId,
       bookmarkExportText: input.bookmarkExportText,
+      csrfToken: input.csrfToken,
     },
   );
 }

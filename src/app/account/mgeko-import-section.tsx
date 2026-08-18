@@ -43,7 +43,7 @@ function syncProgressLabel(progress: MgekoSyncProgress): string {
 }
 
 async function consumeMgekoSyncStream(
-  body: { sessionId: string; bookmarkExportText?: string },
+  body: { sessionId: string; bookmarkExportText?: string; csrfToken?: string },
   onProgress: (progress: MgekoSyncProgress) => void,
 ): Promise<MgekoSyncResult> {
   const response = await fetch("/api/mgeko/sync", {
@@ -121,6 +121,7 @@ export function MgekoImportSection() {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sessionId, setSessionId] = useState("");
+  const [csrfToken, setCsrfToken] = useState("");
   const [bookmarkExportText, setBookmarkExportText] = useState<string | null>(
     null,
   );
@@ -199,10 +200,12 @@ export function MgekoImportSection() {
           {
             sessionId: value,
             bookmarkExportText: bookmarkExportText ?? undefined,
+            csrfToken: csrfToken.trim() || undefined,
           },
           setSyncProgress,
         );
         setSessionId("");
+        setCsrfToken("");
         clearExportFile();
         setSyncResult(result);
         setSyncProgress(null);
@@ -273,7 +276,10 @@ export function MgekoImportSection() {
             </a>
           </li>
           <li>Open DevTools → Application → Cookies → www.mgeko.cc</li>
-          <li>Copy the <span className="font-mono">sessionid</span> value</li>
+          <li>
+            Copy <span className="font-mono">sessionid</span> (required) and optionally{" "}
+            <span className="font-mono">csrftoken</span>
+          </li>
         </ol>
 
         <p className="font-medium text-foreground">Read chapters (session required)</p>
@@ -289,7 +295,10 @@ export function MgekoImportSection() {
           >
             all chapters
           </a>
-          ). Open eye = read; slashed eye = unread.
+          ). Open eye = read; slashed eye = unread. Sync reads these markers from the
+          logged-in HTML (same as{" "}
+          <span className="font-mono">changeViewStatus</span> in mgeko&apos;s{" "}
+          <span className="font-mono">new_app.js</span>).
         </p>
 
         <p className="font-medium text-foreground">Or import from export file</p>
@@ -346,6 +355,20 @@ export function MgekoImportSection() {
           value={sessionId}
           onChange={(e) => setSessionId(e.target.value)}
           placeholder="Paste sessionid cookie"
+          disabled={syncPending}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="mgekoCsrfToken">CSRF token (optional)</Label>
+        <Input
+          id="mgekoCsrfToken"
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          value={csrfToken}
+          onChange={(e) => setCsrfToken(e.target.value)}
+          placeholder="Paste csrftoken cookie if read sync fails"
           disabled={syncPending}
         />
       </div>

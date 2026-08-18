@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     });
   }
 
-  let body: { sessionId?: string; bookmarkExportText?: string };
+  let body: { sessionId?: string; bookmarkExportText?: string; csrfToken?: string };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -53,13 +53,14 @@ export async function POST(request: Request) {
   }
 
   const bookmarkExportText = body.bookmarkExportText?.trim() || undefined;
+  const csrfToken = body.csrfToken?.trim() || undefined;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       try {
         const result = await runMgekoSync(
           { supabase, userId: user.id },
-          { sessionId, bookmarkExportText },
+          { sessionId, bookmarkExportText, csrfToken },
           (progress) => {
             writeEvent(controller, { type: "progress", ...progress });
           },

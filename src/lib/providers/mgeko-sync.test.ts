@@ -127,6 +127,36 @@ describe("parseMgekoReadChapters", () => {
     expect(read.map((c) => c.chapterId)).toEqual(["foo-chapter-5-eng-li"]);
   });
 
+  it("parses read chapters from fa-solid eye icons on toggle element", () => {
+    const html = `
+      <ul class="chapter-list">
+        <li>
+          <a href="/reader/en/foo-chapter-3-eng-li/"><strong class="chapter-title">3-eng-li</strong></a>
+          <i class="fa-solid fa-eye" onclick="changeViewStatus(event, '3-eng-li')"></i>
+        </li>
+        <li>
+          <a href="/reader/en/foo-chapter-2-eng-li/"><strong class="chapter-title">2-eng-li</strong></a>
+          <i class="fa-solid fa-eye-slash" onclick="changeViewStatus(event, '2-eng-li')"></i>
+        </li>
+      </ul>
+    `;
+
+    const read = parseMgekoReadChapters(html, "foo");
+    expect(read.map((c) => c.chapterId)).toEqual(["foo-chapter-3-eng-li"]);
+  });
+
+  it("parses read chapters from global changeViewStatus toggles outside li", () => {
+    const html = `
+      <div class="chapter-grid">
+        <a href="/reader/en/bar-chapter-7-eng-li/">Ch 7</a>
+        <i class="fas fa-eye" onclick="changeViewStatus(event, '7-eng-li')"></i>
+      </div>
+    `;
+
+    const read = parseMgekoReadChapters(html, "bar");
+    expect(read.map((c) => c.chapterId)).toEqual(["bar-chapter-7-eng-li"]);
+  });
+
   it("detects when all-chapters HTML lacks logged-in view markers", () => {
     const html = `
       <ul class="chapter-list">
