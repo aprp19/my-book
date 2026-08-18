@@ -1,4 +1,4 @@
-# my-book
+# Personal Manga Reader
 
 Personal Manga Reader — search, read, and track manga/manhwa from external providers (ComicK, MangaDex, AniList). Full implementation plan: `PLAN.md — Personal Manga Reader.md`.
 

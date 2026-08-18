@@ -1,4 +1,4 @@
-# my-book — Design System
+# Personal Manga Reader — Design System
 
 Warm dark-only UI for a personal manga/manhwa reader. Optimized for long reading sessions, cover-first browsing, mobile use, and low eye strain.
 

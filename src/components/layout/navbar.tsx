@@ -30,7 +30,7 @@ export async function Navbar() {
           className="flex items-center gap-2 font-semibold tracking-tight"
         >
           <BookOpen className="size-5 text-primary" aria-hidden="true" />
-          <span>my-book</span>
+          <span className="font-serif text-sm sm:text-base">Personal Manga Reader</span>
         </Link>
         <nav className="flex items-center gap-2" aria-label="Account">
           <ButtonLink variant="ghost" size="sm" href="/browse" className="hidden md:inline-flex">
