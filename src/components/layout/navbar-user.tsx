@@ -8,6 +8,7 @@ import { ButtonLink } from "@/components/ui/button-link";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -58,16 +59,18 @@ export function NavbarUser({ user, displayName }: NavbarUserProps) {
         }
       />
       <DropdownMenuContent align="end" className="min-w-48">
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col gap-0.5">
-            {name ? (
-              <span className="text-sm font-medium text-foreground">{name}</span>
-            ) : null}
-            <span className={name ? "text-xs text-muted-foreground" : "text-sm text-foreground"}>
-              {user.email}
-            </span>
-          </div>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal">
+            <div className="flex flex-col gap-0.5">
+              {name ? (
+                <span className="text-sm font-medium text-foreground">{name}</span>
+              ) : null}
+              <span className={name ? "text-xs text-muted-foreground" : "text-sm text-foreground"}>
+                {user.email}
+              </span>
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => router.push("/library")}>
           <Library className="size-4" aria-hidden="true" />
