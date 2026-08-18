@@ -1,24 +1,27 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useInfiniteQuery } from "@tanstack/react-query";
-import { ArrowDownUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { ArrowDownUp, Check, Circle } from "lucide-react";
+import { ChapterListItem } from "@/components/chapter/chapter-list-item";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { chaptersInfiniteQueryOptions } from "@/lib/queries/options";
+import {
+  chaptersInfiniteQueryOptions,
+  mangaChapterProgressQueryOptions,
+} from "@/lib/queries/options";
 import type { MangaProviderType } from "@/types";
 
 interface ChapterListProps {
   provider: MangaProviderType;
   mangaId: string;
+  userId?: string | null;
 }
 
-export function ChapterList({ provider, mangaId }: ChapterListProps) {
+export function ChapterList({ provider, mangaId, userId }: ChapterListProps) {
   const [filter, setFilter] = useState("");
   const [ascending, setAscending] = useState(false);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -31,6 +34,15 @@ export function ChapterList({ provider, mangaId }: ChapterListProps) {
     isFetchingNextPage,
     isLoading,
   } = useInfiniteQuery(chaptersInfiniteQueryOptions(provider, mangaId));
+
+  const progressQuery = useQuery(
+    mangaChapterProgressQueryOptions(provider, mangaId, Boolean(userId)),
+  );
+
+  const readChapterIds = useMemo(
+    () => new Set(progressQuery.data ?? []),
+    [progressQuery.data],
+  );
 
   const chapters = useMemo(
     () => data?.pages.flatMap((page) => page.chapters) ?? [],
@@ -104,6 +116,20 @@ export function ChapterList({ provider, mangaId }: ChapterListProps) {
           Sort {ascending ? "ascending" : "descending"}
         </Button>
       </div>
+
+      {userId ? (
+        <p className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <Check className="size-3.5 text-primary" aria-hidden="true" />
+            Read
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Circle className="size-3.5 text-muted-foreground/50" aria-hidden="true" />
+            Unread
+          </span>
+        </p>
+      ) : null}
+
       <ScrollArea
         viewportRef={viewportRef}
         onNearBottom={loadMore}
@@ -112,20 +138,13 @@ export function ChapterList({ provider, mangaId }: ChapterListProps) {
         <ul className="divide-y divide-border">
           {filtered.map((chapter) => (
             <li key={chapter.id}>
-              <Link
-                href={`/read/${provider}/${encodeURIComponent(chapter.id)}?mangaId=${encodeURIComponent(mangaId)}`}
-                className="flex min-h-12 items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-muted/50"
-              >
-                <span className="min-w-0 truncate">
-                  Ch. {chapter.number ?? "?"}
-                  {chapter.title ? ` — ${chapter.title}` : ""}
-                </span>
-                {chapter.language ? (
-                  <Badge variant="secondary" className="shrink-0 uppercase">
-                    {chapter.language}
-                  </Badge>
-                ) : null}
-              </Link>
+              <ChapterListItem
+                chapter={chapter}
+                provider={provider}
+                mangaId={mangaId}
+                isRead={readChapterIds.has(chapter.id)}
+                showReadState={Boolean(userId)}
+              />
             </li>
           ))}
         </ul>

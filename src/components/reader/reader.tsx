@@ -255,6 +255,7 @@ export function Reader({
         mangaId={mangaId}
         currentChapterId={chapterId}
         chapters={chapters}
+        userId={userId}
       />
     </div>
   );

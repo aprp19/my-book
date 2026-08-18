@@ -18,6 +18,8 @@ export interface Manga {
   artist: string | null;
   status: MangaStatus | null;
   genres: string[];
+  /** Latest chapter update time from browse/catalog when available */
+  lastUpdatedAt?: string | null;
 }
 
 export interface MangaSearchResult {

@@ -202,6 +202,21 @@ export async function getReadingProgress(
   return data?.page ?? 0;
 }
 
+export async function listMangaChapterProgress(
+  provider: string,
+  externalMangaId: string,
+) {
+  const { supabase, user } = await requireUser();
+  const { data, error } = await supabase
+    .from("reading_progress")
+    .select("external_chapter_id")
+    .eq("user_id", user.id)
+    .eq("provider", provider)
+    .eq("external_manga_id", externalMangaId);
+  if (error) throw error;
+  return (data ?? []).map((row) => row.external_chapter_id);
+}
+
 export async function listContinueReading() {
   const { supabase, user } = await requireUser();
   const { data, error } = await supabase

@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import type { Chapter, ChapterListResult, Page } from "@/types/chapter";
 import type { Manga, MangaStatus } from "@/types/manga";
 import { CACHE_TTL } from "@/lib/cache/fetch";
+import { toIsoDateString } from "@/lib/utils/date";
 import { ProviderError } from "./errors";
 import { mgekoJsonFetch, mgekoPageFetch, MGEKO_BASE_URL } from "./mgeko-fetch";
 import type { BrowseFeed, BrowseOptions, BrowseSortOption, MangaProvider } from "./types";
@@ -82,7 +83,17 @@ function mangaSlugFromChapterSlug(chapterSlug: string): string {
   return chapterSlug.replace(/-chapter-[\d].*$/i, "");
 }
 
-function normalizeMgekoManga(slug: string, name: string, coverUrl: string | null): Manga {
+function normalizeProviderDate(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  return toIsoDateString(raw) ?? raw.trim();
+}
+
+function normalizeMgekoManga(
+  slug: string,
+  name: string,
+  coverUrl: string | null,
+  lastUpdatedAt?: string | null,
+): Manga {
   return {
     id: slug,
     provider: "mgeko",
@@ -94,6 +105,7 @@ function normalizeMgekoManga(slug: string, name: string, coverUrl: string | null
     artist: null,
     status: null,
     genres: [],
+    lastUpdatedAt: normalizeProviderDate(lastUpdatedAt),
   };
 }
 
@@ -218,8 +230,7 @@ export class MgekoProvider implements MangaProvider {
       const chapterSlug = chapterSlugMatch[1];
       const number = chapterNumberFromSlug(chapterSlug);
 
-      // <time datetime="Aug. 18, 2026, 3:22 a.m."> or .chapter-update text
-      const publishedAt =
+      const publishedAtRaw =
         $(el).find("time").attr("datetime") ??
         ($(el).find(".chapter-update").text().trim() || null);
 
@@ -231,7 +242,7 @@ export class MgekoProvider implements MangaProvider {
         title: null,
         volume: null,
         language: "en",
-        publishedAt,
+        publishedAt: normalizeProviderDate(publishedAtRaw),
       });
     });
 
@@ -344,7 +355,20 @@ export class MgekoProvider implements MangaProvider {
         $el.find("img").first().attr("src") ??
         $el.find("img").first().attr("data-src") ??
         null;
-      results.push(normalizeMgekoManga(slug, title, resolveCoverUrl(cover ?? undefined)));
+      const lastUpdatedRaw =
+        $el.find("time[datetime]").first().attr("datetime") ??
+        $el.find(".comic-card__update time").first().attr("datetime") ??
+        ($el.find(".chapter-update").first().text().trim() ||
+          $el.find(".comic-card__update").first().text().trim() ||
+          null);
+      results.push(
+        normalizeMgekoManga(
+          slug,
+          title,
+          resolveCoverUrl(cover ?? undefined),
+          lastUpdatedRaw,
+        ),
+      );
     });
 
     return results;

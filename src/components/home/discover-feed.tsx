@@ -7,6 +7,7 @@ import { DiscoverPagination } from "@/components/home/discover-pagination";
 import { MangaGridSkeleton } from "@/components/home/manga-grid-skeleton";
 import type { BrowsePages } from "@/lib/data/browse-shared";
 import { browseQueryOptions } from "@/lib/queries/options";
+import { formatChapterReleaseDate } from "@/lib/utils/date";
 import type { BrowseFeed } from "@/lib/providers/types";
 
 interface DiscoverFeedProps {
@@ -37,6 +38,7 @@ export function DiscoverFeed({ feed, title, page, pages }: DiscoverFeedProps) {
               provider: manga.provider,
               title: manga.title,
               coverUrl: manga.coverUrl,
+              subtitle: formatChapterReleaseDate(manga.lastUpdatedAt) ?? undefined,
             }))}
           />
           <DiscoverPagination

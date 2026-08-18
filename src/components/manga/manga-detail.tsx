@@ -194,7 +194,7 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
       ) : (
         <section className="space-y-4">
           <h2 className="text-xl font-serif font-semibold">Chapters</h2>
-          <ChapterList provider={provider} mangaId={id} />
+          <ChapterList provider={provider} mangaId={id} userId={userId} />
         </section>
       )}
 

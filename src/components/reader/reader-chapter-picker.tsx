@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowDownUp, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChapterListItem } from "@/components/chapter/chapter-list-item";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { mangaChapterProgressQueryOptions } from "@/lib/queries/options";
 import { cn } from "@/lib/utils";
 import type { Chapter } from "@/types";
 import type { MangaProviderType } from "@/types";
@@ -18,14 +19,7 @@ interface ReaderChapterPickerProps {
   mangaId: string;
   currentChapterId: string;
   chapters: Chapter[];
-}
-
-function chapterHref(
-  provider: MangaProviderType,
-  mangaId: string,
-  chapterId: string,
-) {
-  return `/read/${provider}/${encodeURIComponent(chapterId)}?mangaId=${encodeURIComponent(mangaId)}`;
+  userId?: string | null;
 }
 
 export function ReaderChapterPicker({
@@ -35,11 +29,21 @@ export function ReaderChapterPicker({
   mangaId,
   currentChapterId,
   chapters,
+  userId,
 }: ReaderChapterPickerProps) {
   const [filter, setFilter] = useState("");
   const [ascending, setAscending] = useState(false);
   const currentRowRef = useRef<HTMLAnchorElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  const progressQuery = useQuery(
+    mangaChapterProgressQueryOptions(provider, mangaId, Boolean(userId)),
+  );
+
+  const readChapterIds = useMemo(
+    () => new Set(progressQuery.data ?? []),
+    [progressQuery.data],
+  );
 
   const filtered = useMemo(() => {
     const list = chapters.filter((chapter) => {
@@ -145,26 +149,17 @@ export function ReaderChapterPicker({
               const isCurrent = chapter.id === currentChapterId;
               return (
                 <li key={chapter.id}>
-                  <Link
-                    ref={isCurrent ? currentRowRef : undefined}
-                    href={chapterHref(provider, mangaId, chapter.id)}
-                    aria-current={isCurrent ? "page" : undefined}
-                    onClick={() => onOpenChange(false)}
-                    className={cn(
-                      "flex min-h-12 items-center justify-between gap-3 rounded-lg px-3 py-3 text-sm hover:bg-muted/50",
-                      isCurrent && "bg-primary/10 font-medium text-primary",
-                    )}
-                  >
-                    <span className="min-w-0 truncate">
-                      Ch. {chapter.number ?? "?"}
-                      {chapter.title ? ` — ${chapter.title}` : ""}
-                    </span>
-                    {chapter.language ? (
-                      <Badge variant="secondary" className="shrink-0 uppercase">
-                        {chapter.language}
-                      </Badge>
-                    ) : null}
-                  </Link>
+                  <ChapterListItem
+                    chapter={chapter}
+                    provider={provider}
+                    mangaId={mangaId}
+                    isRead={readChapterIds.has(chapter.id)}
+                    isCurrent={isCurrent}
+                    showReadState={Boolean(userId)}
+                    linkRef={isCurrent ? currentRowRef : undefined}
+                    onNavigate={() => onOpenChange(false)}
+                    className="rounded-lg px-3"
+                  />
                 </li>
               );
             })}
