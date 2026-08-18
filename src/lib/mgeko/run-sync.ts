@@ -218,6 +218,8 @@ export async function runMgekoSync(
   }
 
   let chaptersImported = 0;
+  let sawChapterRows = 0;
+  let sawViewMarkers = false;
 
   await mapPoolSequentialProgress(
     series,
@@ -227,16 +229,19 @@ export async function runMgekoSync(
         await upsertSyncedFavorite(ctx.supabase, ctx.userId, bookmark);
         result.favoritesImported += 1;
 
-        const readChapters = await fetchMgekoReadChapters(
+        const readPage = await fetchMgekoReadChapters(
           sessionId,
           bookmark.mangaId,
         );
+        sawChapterRows += readPage.chapterRowCount;
+        sawViewMarkers ||= readPage.hasViewMarkers;
+
         const chaptersToImport: {
           chapterId: string;
           chapterNumber: string | null;
         }[] = [];
 
-        for (const chapter of readChapters) {
+        for (const chapter of readPage.chapters) {
           if (chaptersImported >= MAX_CHAPTERS) {
             result.errors.push({
               mangaId: bookmark.mangaId,
@@ -278,6 +283,24 @@ export async function runMgekoSync(
       });
     },
   );
+
+  if (result.favoritesImported > 0 && result.chaptersMarkedRead === 0) {
+    if (exportText) {
+      result.errors.push({
+        mangaId: "*",
+        message:
+          "The bookmark export file only contains titles. Read chapters are imported separately from your sessionid on each series' all-chapters page.",
+      });
+    }
+
+    if (sawChapterRows > 0 && !sawViewMarkers) {
+      result.errors.push({
+        mangaId: "*",
+        message:
+          "No read markers (eye icons) found on mgeko chapter pages. Your sessionid may be expired — log in on mgeko, open an all-chapters page and confirm you see eye icons, then sync with a fresh sessionid.",
+      });
+    }
+  }
 
   onProgress?.({
     phase: "done",

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   parseMgekoBookmarks,
   parseMgekoReadChapters,
+  parseMgekoReadChaptersPage,
 } from "./mgeko-sync";
 import { MgekoAuthError } from "./mgeko-auth-fetch";
 import { chapterNumberFromSlug, resolveMgekoChapterId } from "./mgeko-utils";
@@ -106,6 +107,40 @@ describe("parseMgekoReadChapters", () => {
       "the-regressed-mercenarys-machinations-chapter-100-eng-li",
     ]);
     expect(read[0].chapterNumber).toBe("101");
+  });
+
+  it("parses read chapters when eye icon is nested inside the toggle", () => {
+    const html = `
+      <ul class="chapter-list">
+        <li>
+          <a href="/reader/en/foo-chapter-5-eng-li/"><strong class="chapter-title">5-eng-li</strong></a>
+          <span onclick="changeViewStatus(event, '5-eng-li')"><i class="fas fa-eye"></i></span>
+        </li>
+        <li>
+          <a href="/reader/en/foo-chapter-4-eng-li/"><strong class="chapter-title">4-eng-li</strong></a>
+          <span onclick="changeViewStatus(event, '4-eng-li')"><i class="fas fa-eye-slash"></i></span>
+        </li>
+      </ul>
+    `;
+
+    const read = parseMgekoReadChapters(html, "foo");
+    expect(read.map((c) => c.chapterId)).toEqual(["foo-chapter-5-eng-li"]);
+  });
+
+  it("detects when all-chapters HTML lacks logged-in view markers", () => {
+    const html = `
+      <ul class="chapter-list">
+        <li>
+          <a href="/reader/en/foo-chapter-1-eng-li/"><strong class="chapter-title">1-eng-li</strong></a>
+        </li>
+      </ul>
+    `;
+
+    const { chapters, chapterRowCount, hasViewMarkers } =
+      parseMgekoReadChaptersPage(html, "foo");
+    expect(chapters).toEqual([]);
+    expect(chapterRowCount).toBe(1);
+    expect(hasViewMarkers).toBe(false);
   });
 
   it("still supports visited list item class markers", () => {

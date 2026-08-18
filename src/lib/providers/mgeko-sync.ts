@@ -141,12 +141,24 @@ function extractChapterIdFromLi(
   return null;
 }
 
+function liEyeReadState($el: cheerio.Cheerio<any>): "read" | "unread" | "unknown" {
+  const blob = `${$el.attr("class") ?? ""} ${$el.html() ?? ""}`;
+  if (/\bfa-eye-slash\b/.test(blob)) return "unread";
+  if (/\bfa-eye\b/.test(blob)) return "read";
+  return "unknown";
+}
+
+function liHasViewToggle($el: cheerio.Cheerio<any>): boolean {
+  if (($el.attr("onclick") ?? "").includes("changeViewStatus")) return true;
+  return $el.find("[onclick*='changeViewStatus']").length > 0;
+}
+
 function isReadChapterLi($el: cheerio.Cheerio<any>): boolean {
-  const viewToggle = $el.find("[onclick*='changeViewStatus']");
-  if (viewToggle.length > 0) {
-    // fa-eye = viewed/read; fa-eye-slash = hidden/unread
-    if (viewToggle.hasClass("fa-eye-slash")) return false;
-    if (viewToggle.hasClass("fa-eye")) return true;
+  if (liHasViewToggle($el)) {
+    const state = liEyeReadState($el);
+    if (state === "read") return true;
+    if (state === "unread") return false;
+    return false;
   }
 
   const cls = ($el.attr("class") ?? "").toLowerCase();
@@ -155,41 +167,49 @@ function isReadChapterLi($el: cheerio.Cheerio<any>): boolean {
   }
 
   if (
-    $el.find(
-      ".visited, .read, .viewed, .chapter-read, .read-chapter, [class*='read']",
-    ).length > 0
+    $el.find(".visited, .viewed, .chapter-read, .read-chapter, .visited-icon")
+      .length > 0
   ) {
     return true;
   }
 
-  if ($el.find('[aria-label*="read" i], [title*="read" i]').length > 0) {
-    return true;
-  }
-
-  const iconText = $el
-    .find("i, span.material-icons, .material-icons, svg")
-    .text()
-    .toLowerCase();
-  if (iconText.includes("check") || iconText.includes("done")) {
-    return true;
-  }
-
-  if ($el.find(".chapter-read-icon, .read-icon, .visited-icon").length > 0) {
+  if ($el.find(".chapter-read-icon, .read-icon").length > 0) {
     return true;
   }
 
   return false;
 }
 
-export function parseMgekoReadChapters(
+export interface MgekoReadChaptersParseResult {
+  chapters: MgekoReadChapter[];
+  chapterRowCount: number;
+  hasViewMarkers: boolean;
+}
+
+function getChapterListItems($: cheerio.CheerioAPI): cheerio.Cheerio<any> {
+  const primary = $("ul.chapter-list li");
+  if (primary.length > 0) return primary;
+
+  return $("li").filter((_, el) => {
+    const $el = $(el);
+    return (
+      $el.find("a[href*='/reader/en/']").length > 0 ||
+      $el.find("[onclick*='changeViewStatus']").length > 0 ||
+      $el.find("strong.chapter-title").length > 0
+    );
+  });
+}
+
+export function parseMgekoReadChaptersPage(
   html: string,
   mangaId: string,
-): MgekoReadChapter[] {
+): MgekoReadChaptersParseResult {
   const $ = cheerio.load(html);
   const read: MgekoReadChapter[] = [];
   const seen = new Set<string>();
+  const chapterItems = getChapterListItems($);
 
-  $("ul.chapter-list li").each((_, el) => {
+  chapterItems.each((_, el) => {
     const $el = $(el);
     if (!isReadChapterLi($el)) return;
 
@@ -203,7 +223,18 @@ export function parseMgekoReadChapters(
     });
   });
 
-  return read;
+  const chapterRowCount = chapterItems.length;
+  const hasViewMarkers =
+    html.includes("changeViewStatus") || /\bfa-eye(?:-slash)?\b/.test(html);
+
+  return { chapters: read, chapterRowCount, hasViewMarkers };
+}
+
+export function parseMgekoReadChapters(
+  html: string,
+  mangaId: string,
+): MgekoReadChapter[] {
+  return parseMgekoReadChaptersPage(html, mangaId).chapters;
 }
 
 export async function fetchMgekoBookmarks(sessionId: string): Promise<MgekoBookmark[]> {
@@ -214,10 +245,10 @@ export async function fetchMgekoBookmarks(sessionId: string): Promise<MgekoBookm
 export async function fetchMgekoReadChapters(
   sessionId: string,
   mangaId: string,
-): Promise<MgekoReadChapter[]> {
+): Promise<MgekoReadChaptersParseResult> {
   const html = await mgekoAuthFetchHtml(
     `/manga/${encodeURIComponent(mangaId)}/all-chapters/`,
     sessionId,
   );
-  return parseMgekoReadChapters(html, mangaId);
+  return parseMgekoReadChaptersPage(html, mangaId);
 }

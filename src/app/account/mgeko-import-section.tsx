@@ -276,6 +276,22 @@ export function MgekoImportSection() {
           <li>Copy the <span className="font-mono">sessionid</span> value</li>
         </ol>
 
+        <p className="font-medium text-foreground">Read chapters (session required)</p>
+        <p>
+          Sync imports seen/unseen chapters from each series&apos;{" "}
+          <span className="font-mono">/all-chapters/</span> page while logged in
+          (e.g.{" "}
+          <a
+            href="https://www.mgeko.cc/manga/reincarnation-of-the-fist-king/all-chapters/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary underline-offset-4 hover:underline"
+          >
+            all chapters
+          </a>
+          ). Open eye = read; slashed eye = unread.
+        </p>
+
         <p className="font-medium text-foreground">Or import from export file</p>
         <ol className="list-decimal space-y-1 pl-5">
           <li>
