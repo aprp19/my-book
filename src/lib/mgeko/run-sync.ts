@@ -12,7 +12,9 @@ import {
 } from "@/lib/providers/mgeko-sync";
 
 export const MAX_SERIES = 500;
-export const MAX_CHAPTERS = 5000;
+/** Total read chapters across all series in one sync run. */
+export const MAX_CHAPTERS = 50_000;
+export const CHAPTER_UPSERT_BATCH = 500;
 export const CONCURRENCY = 4;
 export const SESSION_ID_PATTERN = /^[\w-]{16,128}$/;
 
@@ -116,6 +118,22 @@ async function upsertSyncedReadingProgressBatch(
     .from("reading_progress")
     .upsert(rows, { onConflict: "user_id,provider,external_chapter_id" });
   if (error) throw error;
+}
+
+async function upsertSyncedReadingProgressBatched(
+  supabase: SupabaseClient,
+  userId: string,
+  bookmark: MgekoBookmark,
+  chapters: { chapterId: string; chapterNumber: string | null }[],
+) {
+  for (let offset = 0; offset < chapters.length; offset += CHAPTER_UPSERT_BATCH) {
+    await upsertSyncedReadingProgressBatch(
+      supabase,
+      userId,
+      bookmark,
+      chapters.slice(offset, offset + CHAPTER_UPSERT_BATCH),
+    );
+  }
 }
 
 async function mapPoolSequentialProgress<T>(
@@ -232,6 +250,7 @@ export async function runMgekoSync(
   }
 
   let chaptersImported = 0;
+  let chapterLimitWarned = false;
   let sawChapterRows = 0;
   let sawViewMarkers = false;
 
@@ -242,6 +261,11 @@ export async function runMgekoSync(
       try {
         await upsertSyncedFavorite(ctx.supabase, ctx.userId, bookmark);
         result.favoritesImported += 1;
+
+        if (chaptersImported >= MAX_CHAPTERS) {
+          result.seriesProcessed += 1;
+          return;
+        }
 
         const readPage = await fetchMgekoReadChapters(
           sessionId,
@@ -258,10 +282,13 @@ export async function runMgekoSync(
 
         for (const chapter of readPage.chapters) {
           if (chaptersImported >= MAX_CHAPTERS) {
-            result.errors.push({
-              mangaId: bookmark.mangaId,
-              message: `Chapter import limit (${MAX_CHAPTERS}) reached; remaining chapters skipped.`,
-            });
+            if (!chapterLimitWarned) {
+              chapterLimitWarned = true;
+              result.errors.push({
+                mangaId: "*",
+                message: `Chapter import limit (${MAX_CHAPTERS.toLocaleString()}) reached; remaining read chapters skipped for this and later series.`,
+              });
+            }
             break;
           }
           chaptersToImport.push(chapter);
@@ -269,7 +296,7 @@ export async function runMgekoSync(
         }
 
         if (chaptersToImport.length > 0) {
-          await upsertSyncedReadingProgressBatch(
+          await upsertSyncedReadingProgressBatched(
             ctx.supabase,
             ctx.userId,
             bookmark,
