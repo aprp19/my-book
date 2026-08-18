@@ -39,12 +39,12 @@ export function DiscoverPagination({
       className="flex items-center justify-center gap-2 pt-2"
     >
       {hasPrevious && previousHref ? (
-        <ButtonLink variant="outline" size="sm" href={previousHref}>
+        <ButtonLink variant="outline" href={previousHref}>
           <ChevronLeft className="size-4" />
           Previous
         </ButtonLink>
       ) : (
-        <Button variant="outline" size="sm" disabled>
+        <Button variant="outline" disabled>
           <ChevronLeft className="size-4" />
           Previous
         </Button>
@@ -53,12 +53,12 @@ export function DiscoverPagination({
         Page {page}
       </span>
       {hasNext && nextHref ? (
-        <ButtonLink variant="outline" size="sm" href={nextHref}>
+        <ButtonLink variant="outline" href={nextHref}>
           Next
           <ChevronRight className="size-4" />
         </ButtonLink>
       ) : (
-        <Button variant="outline" size="sm" disabled>
+        <Button variant="outline" disabled>
           Next
           <ChevronRight className="size-4" />
         </Button>

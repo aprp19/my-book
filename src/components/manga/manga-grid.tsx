@@ -1,5 +1,6 @@
 import { MangaCard } from "./manga-card";
 import type { MangaProviderType } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface MangaGridItem {
   id: string;
@@ -10,15 +11,41 @@ interface MangaGridItem {
   href?: string;
 }
 
-export function MangaGrid({ items }: { items: MangaGridItem[] }) {
+interface MangaGridProps {
+  items: MangaGridItem[];
+  variant?: "grid" | "carousel";
+  emptyMessage?: string;
+}
+
+export function MangaGrid({
+  items,
+  variant = "grid",
+  emptyMessage = "Nothing here yet — start reading.",
+}: MangaGridProps) {
   if (items.length === 0) {
+    return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
+  }
+
+  if (variant === "carousel") {
     return (
-      <p className="text-sm text-muted-foreground">Nothing here yet — start reading.</p>
+      <div className="cover-carousel -mx-4 flex gap-3 overflow-x-auto px-4 pb-2 snap-x snap-mandatory md:grid md:grid-cols-3 md:gap-4 md:overflow-visible md:snap-none lg:grid-cols-4 xl:grid-cols-5">
+        {items.map((item) => (
+          <MangaCard
+            key={`${item.provider}-${item.id}`}
+            {...item}
+            className="w-[140px] shrink-0 snap-start md:w-auto"
+          />
+        ))}
+      </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+    <div
+      className={cn(
+        "grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 xl:grid-cols-5",
+      )}
+    >
       {items.map((item) => (
         <MangaCard key={`${item.provider}-${item.id}`} {...item} />
       ))}

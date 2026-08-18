@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import type { MangaProviderType } from "@/types";
+import { cn } from "@/lib/utils";
 
 interface MangaCardProps {
   id: string;
@@ -13,20 +13,13 @@ interface MangaCardProps {
   coverUrl: string | null;
   subtitle?: string;
   href?: string;
+  className?: string;
+  /** Hide provider badge on grid cards (shown on detail only) */
+  showProvider?: boolean;
 }
 
-/**
- * mgeko serves covers at two paths:
- *   - Direct:   https://imgsrv5.com/media/manga_covers/{filename}
- *   - Resized:  https://imgsrv5.com/avatar/288x412/media/manga_covers/{filename}
- *
- * If the direct URL 404s, retry with the resized path.
- */
 function mgekoCoverFallback(originalSrc: string): string {
-  // Already using the resized path — nothing to fall back to
   if (originalSrc.includes("/avatar/")) return originalSrc;
-
-  // Swap bare imgsrv5.com path to the avatar/resized version
   return originalSrc.replace(
     "https://imgsrv5.com/",
     "https://imgsrv5.com/avatar/288x412/",
@@ -42,7 +35,10 @@ function CoverImage({ src, alt }: { src: string; alt: string }) {
     <img
       src={imgSrc}
       alt={alt}
-      className="absolute inset-0 size-full object-cover transition-transform group-hover:scale-[1.02]"
+      width={288}
+      height={412}
+      loading="lazy"
+      className="absolute inset-0 size-full object-cover motion-safe-scale-hover group-hover:scale-[1.02]"
       onError={() => {
         if (!triedFallback) {
           const fallback = mgekoCoverFallback(imgSrc);
@@ -63,11 +59,13 @@ export function MangaCard({
   coverUrl,
   subtitle,
   href,
+  className,
+  showProvider = false,
 }: MangaCardProps) {
   const link = href ?? `/manga/${provider}/${encodeURIComponent(id)}`;
 
   return (
-    <Link href={link} className="group block">
+    <Link href={link} className={cn("group block touch-manipulation", className)}>
       <Card className="overflow-hidden border-border/60 py-0 transition-colors hover:border-primary/40">
         <CardContent className="p-0">
           <div className="relative aspect-[2/3] bg-muted">
@@ -80,14 +78,11 @@ export function MangaCard({
             )}
           </div>
           <div className="space-y-1 p-3">
-            <div className="flex items-start justify-between gap-2">
-              <p className="line-clamp-2 text-sm font-medium leading-snug">{title}</p>
-              <Badge variant="secondary" className="shrink-0 text-[10px] uppercase">
-                {provider}
-              </Badge>
-            </div>
+            <p className="line-clamp-2 min-w-0 text-sm font-medium leading-snug">{title}</p>
             {subtitle ? (
               <p className="text-xs text-muted-foreground">{subtitle}</p>
+            ) : showProvider ? (
+              <p className="text-xs uppercase text-muted-foreground">{provider}</p>
             ) : null}
           </div>
         </CardContent>

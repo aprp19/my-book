@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { BookOpen } from "lucide-react";
 import { MangaGrid } from "@/components/manga/manga-grid";
+import { SectionHeader } from "@/components/layout/section-header";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ButtonLink } from "@/components/ui/button-link";
 import {
   continueReadingQueryOptions,
   favoritesQueryOptions,
@@ -14,11 +18,11 @@ import {
 } from "@/lib/queries/options";
 import { formatDistanceToNow } from "@/lib/utils/date";
 
-interface HomeSectionsProps {
+interface LibrarySectionsProps {
   userId: string | null;
 }
 
-export function HomeSections({ userId }: HomeSectionsProps) {
+export function LibrarySections({ userId }: LibrarySectionsProps) {
   const enabled = Boolean(userId);
 
   const continueReadingQuery = useQuery(continueReadingQueryOptions(enabled));
@@ -26,7 +30,16 @@ export function HomeSections({ userId }: HomeSectionsProps) {
   const recentViewsQuery = useQuery(recentViewsQueryOptions(enabled));
   const favoritesQuery = useQuery(favoritesQueryOptions(enabled));
 
-  if (!userId) return null;
+  if (!userId) {
+    return (
+      <EmptyState
+        icon={BookOpen}
+        title="Sign in to track your reading"
+        description="Save favorites, continue where you left off, and see your history."
+        action={<ButtonLink href="/login">Sign in</ButtonLink>}
+      />
+    );
+  }
 
   const isLoading =
     continueReadingQuery.isLoading ||
@@ -38,11 +51,7 @@ export function HomeSections({ userId }: HomeSectionsProps) {
     return (
       <div className="space-y-10">
         <Skeleton className="h-6 w-40" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-[2/3] rounded-lg" />
-          ))}
-        </div>
+        <MangaGridSkeletonInline />
       </div>
     );
   }
@@ -55,8 +64,9 @@ export function HomeSections({ userId }: HomeSectionsProps) {
   return (
     <div className="space-y-10">
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Continue Reading</h2>
+        <SectionHeader title="Continue Reading" />
         <MangaGrid
+          variant="carousel"
           items={continueReading.map((row) => ({
             id: row.external_manga_id,
             provider: row.provider,
@@ -65,22 +75,23 @@ export function HomeSections({ userId }: HomeSectionsProps) {
             subtitle: `Ch. ${row.chapter_number ?? "?"} · p.${row.page + 1}`,
             href: `/read/${row.provider}/${encodeURIComponent(row.external_chapter_id)}?mangaId=${encodeURIComponent(row.external_manga_id)}`,
           }))}
+          emptyMessage="Nothing in progress — pick a series to start."
         />
       </section>
 
       <Separator />
 
       <section className="space-y-6">
-        <h2 className="text-lg font-semibold">History</h2>
+        <SectionHeader title="History" />
         <div className="space-y-4">
           <div>
             <h3 className="mb-3 text-sm font-medium text-muted-foreground">
               Recently Read
             </h3>
-            <ScrollArea className="max-h-80 rounded-lg border border-border">
-              <div className="space-y-2 p-1">
+            <ScrollArea className="max-h-80 rounded-xl border border-border">
+              <div className="space-y-1 p-1">
                 {recentChapters.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-muted-foreground">
+                  <p className="px-3 py-4 text-sm text-muted-foreground">
                     Nothing here yet — start reading.
                   </p>
                 ) : (
@@ -88,13 +99,13 @@ export function HomeSections({ userId }: HomeSectionsProps) {
                     <Link
                       key={row.id}
                       href={`/read/${row.provider}/${encodeURIComponent(row.external_chapter_id)}?mangaId=${encodeURIComponent(row.external_manga_id)}`}
-                      className="flex items-center justify-between rounded-lg border border-border px-4 py-3 text-sm hover:bg-muted/50"
+                      className="flex min-h-12 items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm hover:bg-muted/50"
                     >
-                      <span>
+                      <span className="min-w-0 truncate">
                         {row.manga_title ?? "Unknown"} · Ch. {row.chapter_number ?? "?"}{" "}
                         · p.{row.page + 1}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                         {formatDistanceToNow(row.updated_at)}
                       </span>
                     </Link>
@@ -108,6 +119,7 @@ export function HomeSections({ userId }: HomeSectionsProps) {
               Recently Viewed
             </h3>
             <MangaGrid
+              variant="carousel"
               items={recentViews.map((row) => ({
                 id: row.external_manga_id,
                 provider: row.provider,
@@ -123,16 +135,31 @@ export function HomeSections({ userId }: HomeSectionsProps) {
       <Separator />
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">Favorites</h2>
+        <SectionHeader title="Favorites" />
         <MangaGrid
+          variant="carousel"
           items={favorites.map((row) => ({
             id: row.external_manga_id,
             provider: row.provider,
             title: row.title,
             coverUrl: row.cover_url,
           }))}
+          emptyMessage="No favorites yet — heart a series on its detail page."
         />
       </section>
+    </div>
+  );
+}
+
+/** @deprecated Use LibrarySections */
+export const HomeSections = LibrarySections;
+
+function MangaGridSkeletonInline() {
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <Skeleton key={i} className="aspect-[2/3] rounded-xl" />
+      ))}
     </div>
   );
 }

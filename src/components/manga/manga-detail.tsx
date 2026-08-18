@@ -6,12 +6,17 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ChapterList } from "@/components/chapter/chapter-list";
 import { FavoriteButton } from "@/components/manga/favorite-button";
+import { AppShell } from "@/components/layout/app-shell";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button-link";
-import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { upsertMangaView } from "@/lib/actions/user-data";
-import { chaptersPageQueryOptions, favoriteStatusQueryOptions, mangaQueryOptions } from "@/lib/queries/options";
+import {
+  chaptersPageQueryOptions,
+  favoriteStatusQueryOptions,
+  mangaQueryOptions,
+} from "@/lib/queries/options";
 import { ProviderError } from "@/lib/providers/errors";
 import type { MangaProviderType } from "@/types";
 
@@ -40,9 +45,9 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
 
   if (mangaQuery.isLoading) {
     return (
-      <div className="mx-auto max-w-6xl space-y-8 px-4 py-10">
-        <div className="grid gap-8 md:grid-cols-[220px_1fr]">
-          <Skeleton className="aspect-[2/3] w-[220px] rounded-xl" />
+      <AppShell className="space-y-8">
+        <div className="grid gap-8 md:grid-cols-[min(220px,100%)_1fr]">
+          <Skeleton className="aspect-[2/3] w-full max-w-[220px] rounded-xl md:mx-0" />
           <div className="space-y-4">
             <Skeleton className="h-10 w-2/3" />
             <Skeleton className="h-4 w-full" />
@@ -50,7 +55,7 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
             <Skeleton className="h-24 w-full" />
           </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -62,13 +67,13 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
       notFound();
     }
     return (
-      <div className="mx-auto max-w-6xl px-4 py-10">
+      <AppShell>
         <p className="text-sm text-muted-foreground">
           {mangaQuery.error instanceof Error
             ? mangaQuery.error.message
             : "Could not load manga."}
         </p>
-      </div>
+      </AppShell>
     );
   }
 
@@ -78,46 +83,78 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
 
   const latestChapter = latestChapterQuery.data?.chapters[0];
   const favorited = favoriteQuery.data ?? false;
+  const readHref =
+    latestChapter && provider !== "anilist"
+      ? `/read/${provider}/${encodeURIComponent(latestChapter.id)}?mangaId=${encodeURIComponent(id)}`
+      : null;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8 px-4 py-10">
-      <div className="grid gap-8 md:grid-cols-[220px_1fr]">
-        <Card className="overflow-hidden py-0">
-          <CardContent className="p-0">
-            <div className="relative aspect-[2/3] bg-muted">
-              {manga.coverUrl ? (
-                <Image
-                  src={manga.coverUrl}
-                  alt={manga.title}
-                  fill
-                  className="object-cover"
-                  sizes="220px"
-                  unoptimized
-                />
-              ) : null}
-            </div>
-          </CardContent>
-        </Card>
+    <AppShell className="space-y-8 pb-28 md:pb-10">
+      <div className="-mx-4 overflow-hidden md:mx-0 md:rounded-xl">
+        <div className="relative aspect-[16/9] max-h-72 w-full bg-muted md:hidden">
+          {manga.coverUrl ? (
+            <Image
+              src={manga.coverUrl}
+              alt=""
+              fill
+              className="object-cover object-top"
+              sizes="100vw"
+              priority
+              unoptimized
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+        </div>
+      </div>
 
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-3xl font-semibold tracking-tight">{manga.title}</h1>
-              <Badge variant="secondary">{provider}</Badge>
-            </div>
-            {manga.altTitles.length > 0 ? (
-              <p className="text-sm text-muted-foreground">{manga.altTitles.join(" · ")}</p>
+      <div className="grid gap-8 md:grid-cols-[min(220px,100%)_1fr] md:items-start">
+        <div className="hidden md:block">
+          <div className="relative aspect-[2/3] overflow-hidden rounded-xl bg-muted">
+            {manga.coverUrl ? (
+              <Image
+                src={manga.coverUrl}
+                alt={manga.title}
+                fill
+                className="object-cover"
+                sizes="220px"
+                unoptimized
+              />
             ) : null}
           </div>
+        </div>
 
-          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
-            {manga.author ? <span>Author: {manga.author}</span> : null}
-            {manga.artist ? <span>Artist: {manga.artist}</span> : null}
-            {manga.status ? <span>Status: {manga.status}</span> : null}
-          </div>
+        <div className="space-y-4 md:-mt-0">
+          <PageHeader
+            title={manga.title}
+            description={
+              manga.altTitles.length > 0 ? manga.altTitles.join(" · ") : undefined
+            }
+            actions={<Badge variant="secondary">{provider}</Badge>}
+          />
+
+          <dl className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+            {manga.author ? (
+              <div>
+                <dt className="sr-only">Author</dt>
+                <dd>Author: {manga.author}</dd>
+              </div>
+            ) : null}
+            {manga.artist ? (
+              <div>
+                <dt className="sr-only">Artist</dt>
+                <dd>Artist: {manga.artist}</dd>
+              </div>
+            ) : null}
+            {manga.status ? (
+              <div>
+                <dt className="sr-only">Status</dt>
+                <dd>Status: {manga.status}</dd>
+              </div>
+            ) : null}
+          </dl>
 
           {manga.genres.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="chip-row">
               {manga.genres.map((genre) => (
                 <Badge key={genre} variant="outline">
                   {genre}
@@ -127,12 +164,12 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
           ) : null}
 
           {manga.description ? (
-            <p className="max-w-3xl text-sm leading-7 text-muted-foreground">
+            <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
               {manga.description}
             </p>
           ) : null}
 
-          <div className="flex flex-wrap gap-2">
+          <div className="hidden flex-wrap gap-2 md:flex">
             {userId ? (
               <FavoriteButton
                 provider={provider}
@@ -142,12 +179,8 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
                 initialFavorited={favorited}
               />
             ) : null}
-            {latestChapter && provider !== "anilist" ? (
-              <ButtonLink
-                href={`/read/${provider}/${encodeURIComponent(latestChapter.id)}?mangaId=${encodeURIComponent(id)}`}
-              >
-                Continue reading
-              </ButtonLink>
+            {readHref ? (
+              <ButtonLink href={readHref}>Read latest</ButtonLink>
             ) : null}
           </div>
         </div>
@@ -160,10 +193,35 @@ export function MangaDetail({ provider, id, userId }: MangaDetailProps) {
         </p>
       ) : (
         <section className="space-y-4">
-          <h2 className="text-xl font-semibold">Chapters</h2>
+          <h2 className="text-xl font-serif font-semibold">Chapters</h2>
           <ChapterList provider={provider} mangaId={id} />
         </section>
       )}
-    </div>
+
+      {provider !== "anilist" ? (
+        <div
+          className="fixed inset-x-0 bottom-14 z-40 border-t border-border bg-background/95 p-4 backdrop-blur-md md:hidden"
+          style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+        >
+          <div className="mx-auto flex max-w-lg gap-2">
+            {readHref ? (
+              <ButtonLink href={readHref} className="min-h-11 flex-1">
+                Read latest
+              </ButtonLink>
+            ) : null}
+            {userId ? (
+              <FavoriteButton
+                provider={provider}
+                externalMangaId={id}
+                title={manga.title}
+                coverUrl={manga.coverUrl}
+                initialFavorited={favorited}
+                className="min-h-11 shrink-0"
+              />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </AppShell>
   );
 }

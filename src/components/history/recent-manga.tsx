@@ -1,1 +1,1 @@
-export { HomeSections as HistorySection } from "./history-section";
+export { LibrarySections as HistorySection } from "./history-section";

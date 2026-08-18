@@ -2,12 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type {
   FavoritePayload,
   MangaViewPayload,
   ReadingProgressPayload,
 } from "@/types";
+
+export interface UserProfile {
+  email: string;
+  displayName: string | null;
+  canChangePassword: boolean;
+}
 
 async function requireUser() {
   const supabase = await createClient();
@@ -53,6 +60,74 @@ export async function signOut() {
   await supabase.auth.signOut();
   revalidatePath("/");
   redirect("/login");
+}
+
+function canChangePassword(user: { app_metadata?: Record<string, unknown>; identities?: { provider: string }[] }) {
+  const provider = user.app_metadata?.provider;
+  if (provider === "google") return false;
+  return user.identities?.some((identity) => identity.provider === "email") ?? false;
+}
+
+export async function getProfile(): Promise<UserProfile> {
+  const { supabase, user } = await requireUser();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) throw error;
+
+  return {
+    email: user.email ?? "",
+    displayName: data?.display_name ?? null,
+    canChangePassword: canChangePassword(user),
+  };
+}
+
+export async function updateProfile(input: {
+  displayName?: string;
+  newPassword?: string;
+}) {
+  const { supabase, user } = await requireUser();
+
+  const displayName = input.displayName?.trim() ?? "";
+  const { error: profileError } = await supabase.from("profiles").upsert(
+    {
+      id: user.id,
+      display_name: displayName.length > 0 ? displayName : null,
+    },
+    { onConflict: "id" },
+  );
+  if (profileError) throw profileError;
+
+  if (input.newPassword) {
+    if (!canChangePassword(user)) {
+      throw new Error("Password is managed by your sign-in provider.");
+    }
+    if (input.newPassword.length < 6) {
+      throw new Error("Password must be at least 6 characters.");
+    }
+    const { error: passwordError } = await supabase.auth.updateUser({
+      password: input.newPassword,
+    });
+    if (passwordError) throw passwordError;
+  }
+
+  revalidatePath("/account");
+  revalidatePath("/");
+}
+
+export async function deleteAccount() {
+  const { user } = await requireUser();
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  if (error) throw error;
+
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  revalidatePath("/");
+  redirect("/");
 }
 
 export async function listFavorites() {

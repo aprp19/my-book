@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Image from "next/image";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
+import { ReaderChapterControls } from "@/components/reader/reader-controls";
+import { ReaderChapterPicker } from "@/components/reader/reader-chapter-picker";
 import { upsertReadingProgress } from "@/lib/actions/user-data";
 import { useReaderStore } from "@/stores/reader-store";
+import { cn } from "@/lib/utils";
 import type { Chapter, Page } from "@/types";
 import type { MangaProviderType } from "@/types";
 
@@ -35,9 +38,25 @@ export function Reader({
 }: ReaderProps) {
   const { currentPage, setCurrentPage, setTotalPages } = useReaderStore();
   const [failedPages, setFailedPages] = useState<Record<number, boolean>>({});
+  const [chromeVisible, setChromeVisible] = useState(true);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [, startTransition] = useTransition();
   const pageRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const showChrome = useCallback(() => {
+    setChromeVisible(true);
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    hideTimer.current = setTimeout(() => setChromeVisible(false), 3500);
+  }, []);
+
+  useEffect(() => {
+    showChrome();
+    return () => {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    };
+  }, [showChrome]);
 
   useEffect(() => {
     setTotalPages(pages.length);
@@ -112,46 +131,50 @@ export function Reader({
       ? sortedChapters[currentIndex + 1]
       : null;
 
+  const progress = pages.length > 0 ? ((currentPage + 1) / pages.length) * 100 : 0;
+  const chromeShown = chromeVisible || pickerOpen;
+
+  function openPicker() {
+    showChrome();
+    setPickerOpen(true);
+  }
+
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-black/90 px-4 py-3 backdrop-blur">
-        <ButtonLink variant="ghost" size="sm" href={`/manga/${provider}/${mangaId}`}>
-          <ChevronLeft className="size-4" />
-          Back
-        </ButtonLink>
-        <div className="text-center text-sm">
-          <p className="font-medium">{mangaTitle}</p>
-          <p className="text-white/60">
-            Ch. {chapterNumber ?? "?"} · {currentPage + 1}/{pages.length}
-          </p>
-        </div>
-        <div className="flex gap-1">
-          {prevChapter ? (
-            <ButtonLink
-              variant="ghost"
-              size="icon-sm"
-              href={`/read/${provider}/${encodeURIComponent(prevChapter.id)}?mangaId=${encodeURIComponent(mangaId)}`}
-            >
-              <ChevronLeft className="size-4" />
-            </ButtonLink>
-          ) : (
-            <span className="size-7" />
-          )}
-          {nextChapter ? (
-            <ButtonLink
-              variant="ghost"
-              size="icon-sm"
-              href={`/read/${provider}/${encodeURIComponent(nextChapter.id)}?mangaId=${encodeURIComponent(mangaId)}`}
-            >
-              <ChevronRight className="size-4" />
-            </ButtonLink>
-          ) : (
-            <span className="size-7" />
-          )}
+    <div
+      className="min-h-screen bg-reader-ink text-foreground"
+      onClick={showChrome}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !pickerOpen) showChrome();
+      }}
+    >
+      <div
+        className={cn(
+          "fixed inset-x-0 top-0 z-40 border-b border-border/50 bg-reader-ink/90 backdrop-blur-md transition-opacity duration-300",
+          chromeShown ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 px-3 py-2 sm:px-4">
+          <ButtonLink
+            variant="ghost"
+            size="sm"
+            href={`/manga/${provider}/${mangaId}`}
+            className="shrink-0 text-foreground"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            Back
+          </ButtonLink>
+          <div className="min-w-0 flex-1 text-center text-sm">
+            <p className="truncate font-medium">{mangaTitle}</p>
+            <p className="text-muted-foreground">
+              Ch. {chapterNumber ?? "?"} · {currentPage + 1}/{pages.length}
+            </p>
+          </div>
+          <span className="w-[4.5rem] shrink-0" aria-hidden="true" />
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-3xl flex-col">
+      <div className="mx-auto flex max-w-3xl flex-col pt-14 pb-6">
         {pages.map((page, index) => (
           <div
             key={page.index}
@@ -162,7 +185,7 @@ export function Reader({
             className="relative w-full"
           >
             {failedPages[index] ? (
-              <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 bg-zinc-900 p-8 text-sm">
+              <div className="flex min-h-[40vh] flex-col items-center justify-center gap-2 bg-muted/30 p-8 text-sm">
                 <p>Failed to load page {index + 1}.</p>
                 <Button
                   size="sm"
@@ -193,6 +216,46 @@ export function Reader({
           </div>
         ))}
       </div>
+
+      <div
+        className={cn(
+          "fixed inset-x-0 bottom-0 z-40 transition-opacity duration-300",
+          chromeShown ? "opacity-100" : "pointer-events-none opacity-0",
+        )}
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <ReaderChapterControls
+          provider={provider}
+          mangaId={mangaId}
+          chapterNumber={chapterNumber}
+          prevChapter={prevChapter}
+          nextChapter={nextChapter}
+          onOpenPicker={openPicker}
+        />
+        <div
+          className="h-1 bg-muted"
+          role="progressbar"
+          aria-valuenow={currentPage + 1}
+          aria-valuemin={1}
+          aria-valuemax={Math.max(pages.length, 1)}
+          aria-label="Reading progress"
+        >
+          <div
+            className="h-full bg-primary transition-[width] duration-200"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <ReaderChapterPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        provider={provider}
+        mangaId={mangaId}
+        currentChapterId={chapterId}
+        chapters={chapters}
+      />
     </div>
   );
 }

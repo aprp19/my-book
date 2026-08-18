@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { AppShell } from "@/components/layout/app-shell";
 import { Button } from "@/components/ui/button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   signInWithGoogle,
   signInWithPassword,
@@ -16,10 +18,10 @@ export default function LoginPage() {
   const [pending, startTransition] = useTransition();
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-10">
-      <div className="space-y-6 rounded-xl border border-border bg-card p-6">
+    <AppShell className="flex min-h-[70vh] flex-col justify-center">
+      <div className="mx-auto w-full max-w-md space-y-6 rounded-xl border border-border bg-card p-6">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">
+          <h1 className="text-2xl font-serif font-semibold">
             {mode === "signin" ? "Sign in" : "Create account"}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -48,11 +50,41 @@ export default function LoginPage() {
             });
           }}
         >
-          <Input name="email" type="email" placeholder="Email" required />
-          <Input name="password" type="password" placeholder="Password" required minLength={6} />
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          <div className="space-y-1.5">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              required
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete={mode === "signin" ? "current-password" : "new-password"}
+              minLength={6}
+              required
+            />
+          </div>
+          {error ? (
+            <p className="text-sm text-destructive" role="alert">
+              {error}
+            </p>
+          ) : null}
           <Button type="submit" className="w-full" disabled={pending}>
-            {mode === "signin" ? "Sign in" : "Sign up"}
+            {pending
+              ? mode === "signin"
+                ? "Signing in…"
+                : "Creating account…"
+              : mode === "signin"
+                ? "Sign in"
+                : "Sign up"}
           </Button>
         </form>
 
@@ -62,15 +94,18 @@ export default function LoginPage() {
           disabled={pending}
           onClick={() => startTransition(() => signInWithGoogle())}
         >
-          Continue with Google
+          {pending ? "Redirecting…" : "Continue with Google"}
         </Button>
 
         <p className="text-center text-sm text-muted-foreground">
           {mode === "signin" ? "No account?" : "Already have an account?"}{" "}
           <button
             type="button"
-            className="text-foreground underline"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+            className="text-primary underline-offset-4 hover:underline"
+            onClick={() => {
+              setMode(mode === "signin" ? "signup" : "signin");
+              setError(null);
+            }}
           >
             {mode === "signin" ? "Sign up" : "Sign in"}
           </button>
@@ -80,6 +115,6 @@ export default function LoginPage() {
           Back home
         </ButtonLink>
       </div>
-    </div>
+    </AppShell>
   );
 }

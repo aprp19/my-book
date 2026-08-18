@@ -9,6 +9,34 @@ Personal Manga Reader — search, read, and track manga/manhwa from external pro
 - **Backend:** Supabase Auth + PostgreSQL (favorites, reading progress, manga view history only — no image/catalog mirroring)
 - **Commands:** `pnpm dev`, `pnpm build`, `pnpm lint`
 
+## Design system
+
+**Read [`design.md`](design.md) before any UI work** — pages, components, layout, or styling changes.
+
+The app uses a **warm dark-only** design system (soft ink backgrounds, amber accent, IBM Plex typography, mobile-first navigation). Key rules:
+
+- No light mode; no default shadcn gray palette or Inter as primary UI font
+- 44px minimum touch targets on mobile; bottom nav on small screens
+- Browse filters: bar + sheet + active chips (not a cramped horizontal toolbar)
+- Manga grids: 2–5 columns by breakpoint; horizontal snap carousels on mobile for discover/library rows
+- Reader uses deepest `reader-ink` background; keep progress/save logic unchanged when restyling
+
+Shared layout targets: `AppShell`, `PageHeader`, `SectionHeader`, `BottomNav`, `EmptyState`, `FilterSheet` under `src/components/layout/` and `src/components/ui/`. Match tokens and patterns in `design.md` rather than inventing per-page styles.
+
+### Icons
+
+Use **[lucide-react](https://lucide.dev)** for all UI icons. Import named icons only (e.g. `import { Library, Settings } from "lucide-react"`). Next.js `optimizePackageImports` handles tree-shaking — do not add a separate icon library.
+
+| Context | Size | Notes |
+| --- | --- | --- |
+| Bottom nav / page titles | `size-5` or `size-6` | Decorative; `aria-hidden="true"` |
+| Buttons, dropdown items, inline actions | `size-4` | Pair with visible label text |
+| Empty states | `size-8` | Via `EmptyState` `icon` prop |
+
+**Conventions:** Browse → `Compass`, Library → `Library`, Home → `BookOpen`, Account → `User` / `Settings`, Sign in → `LogIn`, Sign out → `LogOut`, Search → `Search`, Filters → `Filter`, Delete → `Trash2`, Save → `Save`. Icon-only controls must have `aria-label`; icons beside text use `aria-hidden="true"`.
+
+For distinctive visual direction beyond tokens, also read `.agents/skills/frontend-design/SKILL.md`.
+
 ## Agent skills
 
 Skills live in `.agents/skills/`. For specialized work, read each skill's `SKILL.md` first (progressive disclosure). Only load a skill's compiled `AGENTS.md` when the quick reference is insufficient.

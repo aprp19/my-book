@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { removeFavorite, upsertFavorite } from "@/lib/actions/user-data";
 import { favoriteStatusQueryOptions } from "@/lib/queries/options";
 import { queryKeys } from "@/lib/queries/keys";
@@ -14,6 +15,7 @@ interface FavoriteButtonProps {
   title: string;
   coverUrl: string | null;
   initialFavorited: boolean;
+  className?: string;
 }
 
 export function FavoriteButton({
@@ -22,6 +24,7 @@ export function FavoriteButton({
   title,
   coverUrl,
   initialFavorited,
+  className,
 }: FavoriteButtonProps) {
   const queryClient = useQueryClient();
   const statusKey = queryKeys.favoriteStatus(provider, externalMangaId);
@@ -62,6 +65,9 @@ export function FavoriteButton({
       variant={favorited ? "default" : "outline"}
       size="sm"
       disabled={mutation.isPending}
+      className={cn(className)}
+      aria-pressed={favorited}
+      aria-label={favorited ? "Remove from favorites" : "Add to favorites"}
       onClick={() => mutation.mutate(!favorited)}
     >
       <Heart className={`mr-2 size-4 ${favorited ? "fill-current" : ""}`} />

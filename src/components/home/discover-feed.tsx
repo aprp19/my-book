@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { MangaGrid } from "@/components/manga/manga-grid";
+import { SectionHeader } from "@/components/layout/section-header";
 import { DiscoverPagination } from "@/components/home/discover-pagination";
 import { MangaGridSkeleton } from "@/components/home/manga-grid-skeleton";
 import type { BrowsePages } from "@/lib/data/browse-shared";
@@ -20,16 +21,17 @@ export function DiscoverFeed({ feed, title, page, pages }: DiscoverFeedProps) {
 
   return (
     <section className="space-y-4">
-      <h2 className="text-lg font-semibold">{title}</h2>
+      <SectionHeader title={title} seeAllHref="/browse" />
       {isLoading ? (
-        <MangaGridSkeleton />
+        <MangaGridSkeleton variant="carousel" />
       ) : error || items.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          {error instanceof Error ? error.message : "Couldn&apos;t load this list."}
+          {error instanceof Error ? error.message : "Couldn't load this list."}
         </p>
       ) : (
         <>
           <MangaGrid
+            variant="carousel"
             items={items.map((manga) => ({
               id: manga.id,
               provider: manga.provider,
